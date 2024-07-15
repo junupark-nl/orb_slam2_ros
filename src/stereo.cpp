@@ -1,4 +1,4 @@
-#include "stereo.h"
+#include "orb_slam2_ros/stereo.h"
 
 stereo::stereo(ros::NodeHandle &node_handle) : node(node_handle) {
 

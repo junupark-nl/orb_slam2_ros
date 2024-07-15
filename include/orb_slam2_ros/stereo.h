@@ -3,12 +3,12 @@
 
 #include <ros/ros.h>
 
-#include "node.h"
+#include "orb_slam2_ros/node.h"
 
 class stereo: public node {
     public:
         stereo(ros::NodeHandle &node_handle);
         ~stereo();
-}
+};
 
 #endif // ORB_SLAM2_ROS_STEREO_H_

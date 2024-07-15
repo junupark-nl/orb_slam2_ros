@@ -1,4 +1,4 @@
-#include "node.h"
+#include "orb_slam2_ros/node.h"
 
 node::node(ros::NodeHandle &node_handle) : node_handle_(node_handle) {
     // initialize ORB-SLAM

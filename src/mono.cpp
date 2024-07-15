@@ -1,4 +1,4 @@
-#include "mono.h"
+#include "orb_slam2_ros/mono.h"
 
 mono::mono(ros::NodeHandle &node_handle) : node(node_handle) {
     

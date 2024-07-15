@@ -18,6 +18,6 @@ class node {
         ros::ServiceServer save_map_service_;
 
         ORB_SLAM2::System *orb_slam_;
-}
+};
 
 #endif // ORB_SLAM2_ROS_NODE_H_

@@ -1,4 +1,4 @@
-#include "rgbd.h"
+#include "orb_slam2_ros/rgbd.h"
 
 rgbd::rgbd(ros::NodeHandle &node_handle) : node(node_handle) {
     
