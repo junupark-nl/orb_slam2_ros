@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(orb_slam2_ros)
+set(ORB_SLAM_CORE "orb_slam2_core")
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -34,20 +35,10 @@ if(NOT OpenCV_FOUND)
 endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)
-
-set(LIBS_ORBSLAM
-${OpenCV_LIBS}
-${Eigen3_LIBS}
-${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/lib/libDBoW2.so
-${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/g2o/lib/libg2o.so
-)
-
-set(LIBS_ROS
-${PROJECT_SOURCE_DIR}/orb_slam2_core/lib/lib${PROJECT_NAME}.so
-${OpenCV_LIBS}
-${catkin_LIBRARIES}
-)
-message(STATUS "LIBS_ROS: ${LIBS_ROS}, LIBS_ORBSLAM: ${LIBS_ORBSLAM}")
+find_package(Boost REQUIRED COMPONENTS serialization)     
+if(NOT Boost_FOUND)
+  message(FATAL_ERROR "Boost serialization not found.")
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -136,7 +127,7 @@ message(STATUS "LIBS_ROS: ${LIBS_ROS}, LIBS_ORBSLAM: ${LIBS_ORBSLAM}")
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package (
   CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs dynamic_reconfigure message_runtime
-  LIBRARIES {PROJECT_NAME} libDBoW2 libg2o
+  LIBRARIES lib${ORB_SLAM_CORE} libDBoW2 libg2o
 )
 
 ###########
@@ -146,41 +137,56 @@ catkin_package (
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-    ${PROJECT_SOURCE_DIR}/orb_slam2_core
-    ${PROJECT_SOURCE_DIR}/orb_slam2_core/include
-    ${PROJECT_SOURCE_DIR}/include
-    ${EIGEN3_INCLUDE_DIR}
-    ${catkin_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/orb_slam2_core
+  ${PROJECT_SOURCE_DIR}/orb_slam2_core/include
+  ${PROJECT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIR}
+  ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 include(${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/CMakeLists.txt)
 include(${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/g2o/CMakeLists.txt)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/orb_slam2_core/lib)
-
 ## Declare a C++ library
-add_library(${PROJECT_NAME} SHARED
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/orb_slam2_core/lib)
+add_library(${ORB_SLAM_CORE} SHARED
   orb_slam2_core/src/Converter.cc
-    orb_slam2_core/src/Frame.cc
-    orb_slam2_core/src/FrameDrawer.cc
-    orb_slam2_core/src/Initializer.cc
-    orb_slam2_core/src/KeyFrame.cc
-    orb_slam2_core/src/KeyFrameDatabase.cc
-    orb_slam2_core/src/LocalMapping.cc
-    orb_slam2_core/src/LoopClosing.cc
-    orb_slam2_core/src/Map.cc
-    orb_slam2_core/src/MapPoint.cc
-    orb_slam2_core/src/Optimizer.cc
-    orb_slam2_core/src/ORBextractor.cc
-    orb_slam2_core/src/ORBmatcher.cc
-    orb_slam2_core/src/PnPsolver.cc
-    orb_slam2_core/src/Sim3Solver.cc
-    orb_slam2_core/src/System.cc
-    orb_slam2_core/src/Tracking.cc
+  orb_slam2_core/src/Frame.cc
+  orb_slam2_core/src/FrameDrawer.cc
+  orb_slam2_core/src/Initializer.cc
+  orb_slam2_core/src/KeyFrame.cc
+  orb_slam2_core/src/KeyFrameDatabase.cc
+  orb_slam2_core/src/LocalMapping.cc
+  orb_slam2_core/src/LoopClosing.cc
+  orb_slam2_core/src/Map.cc
+  orb_slam2_core/src/MapPoint.cc
+  orb_slam2_core/src/Optimizer.cc
+  orb_slam2_core/src/ORBextractor.cc
+  orb_slam2_core/src/ORBmatcher.cc
+  orb_slam2_core/src/PnPsolver.cc
+  orb_slam2_core/src/Sim3Solver.cc
+  orb_slam2_core/src/System.cc
+  orb_slam2_core/src/Tracking.cc
 )
-add_dependencies(${PROJECT_NAME} g2o DBoW2)
+add_dependencies(${ORB_SLAM_CORE} g2o DBoW2)
 
-target_link_libraries(${PROJECT_NAME}
+set(LIBS_ORBSLAM
+  ${OpenCV_LIBS}
+  ${Eigen3_LIBS}
+  ${Boost_LIBRARIES} # added for the serialization library
+  ${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/lib/libDBoW2.so # this was built by including DBow2 CMakeLists.txt
+  ${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/g2o/lib/libg2o.so # this was built by including g2o CMakeLists.txt
+)
+
+set(LIBS_ROS
+  ${PROJECT_SOURCE_DIR}/orb_slam2_core/lib/lib${ORB_SLAM_CORE}.so # this was built by add_library(${ORB_SLAM_CORE} SHARED ...)
+  ${OpenCV_LIBS}
+  ${catkin_LIBRARIES}
+)
+message(STATUS "LIBS_ROS: ${LIBS_ROS}, LIBS_ORBSLAM: ${LIBS_ORBSLAM}") # simply to check the values
+
+target_link_libraries(${ORB_SLAM_CORE}
   ${LIBS_ORBSLAM}
 )
 
@@ -193,33 +199,33 @@ target_link_libraries(${PROJECT_NAME}
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_mono 
-    src/mono.cpp
-    src/node.cpp
+  src/mono.cpp
+  src/node.cpp
 )
 add_dependencies(${PROJECT_NAME}_mono 
-    ${PROJECT_NAME}
+  ${ORB_SLAM_CORE}
 )
 target_link_libraries(${PROJECT_NAME}_mono
   ${LIBS_ROS}
 )
 
 add_executable(${PROJECT_NAME}_stereo 
-    src/stereo.cpp
-    src/node.cpp
+  src/stereo.cpp
+  src/node.cpp
 )
 add_dependencies(${PROJECT_NAME}_stereo 
-    ${PROJECT_NAME}
+  ${ORB_SLAM_CORE}
 )
 target_link_libraries(${PROJECT_NAME}_stereo
   ${LIBS_ROS}
 )
 
 add_executable(${PROJECT_NAME}_rgbd 
-    src/rgbd.cpp
-    src/node.cpp
+  src/rgbd.cpp
+  src/node.cpp
 )
 add_dependencies(${PROJECT_NAME}_rgbd 
-    ${PROJECT_NAME}
+  ${ORB_SLAM_CORE}
 )
 target_link_libraries(${PROJECT_NAME}_rgbd
   ${LIBS_ROS}
