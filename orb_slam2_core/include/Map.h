@@ -23,6 +23,7 @@
 
 #include "MapPoint.h"
 #include "KeyFrame.h"
+#include "BoostSerialization.h"
 
 #include <set>
 #include <mutex>
