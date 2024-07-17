@@ -39,7 +39,6 @@
 namespace ORB_SLAM2
 {
 
-class Viewer;
 class FrameDrawer;
 class Map;
 class Tracking;
@@ -147,9 +146,6 @@ private:
     // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
     // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
     LoopClosing* mpLoopCloser;
-
-    // The viewer draws the map and the current camera pose. It uses Pangolin.
-    Viewer* mpViewer;
 
     FrameDrawer* mpFrameDrawer;
 

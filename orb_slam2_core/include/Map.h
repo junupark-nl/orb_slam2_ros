@@ -79,6 +79,13 @@ protected:
     int mnBigChangeIdx;
 
     std::mutex mMutexMap;
+
+// map serialization addition
+private:
+    // serialize is recommended to be private
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version);
 };
 
 } //namespace ORB_SLAM
