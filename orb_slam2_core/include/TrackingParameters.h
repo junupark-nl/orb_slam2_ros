@@ -1,9 +1,9 @@
-#ifndef ORBPARAMETERS_H
-#define ORBPARAMETERS_H
+#ifndef TRACKINGPARAMETERS_H
+#define TRACKINGPARAMETERS_H
 
 namespace ORB_SLAM2
 {
-    struct ORBParameters{
+    struct TrackingParameters{
         // ORB Extractor parameters
         int nFeatures;
         float scaleFactor;
@@ -31,4 +31,4 @@ namespace ORB_SLAM2
     };
 }
 
-#endif // ORBPARAMETERS_H
+#endif // TRACKINGPARAMETERS_H

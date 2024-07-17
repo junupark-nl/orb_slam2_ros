@@ -21,12 +21,15 @@ class node {
     
     protected:
         ORB_SLAM2::System *orb_slam_;
-        ORB_SLAM2::System::eSensor sensor_type_;
-        void initialize_ros_side();
-        void initialize_orb_slam2();
         void postprocess();
         void publish();
 
+    private:
+        ORB_SLAM2::System::eSensor sensor_type_;
+        void initialize_ros_side();
+        void initialize_orb_slam2();
+
+        std::string node_name_;
         ros::NodeHandle node_handle_;
         image_transport::ImageTransport image_transport_;
 
@@ -36,6 +39,12 @@ class node {
 
         ros::ServiceServer save_map_service_;
 
+        bool publish_point_cloud_;
+        bool publish_pose_;
+        bool publish_tf_;
+        bool publish_rendered_image_;
+        bool load_map_;
+        std::string map_file_name_;
 };
 
 } // namespace orb_slam2_ros

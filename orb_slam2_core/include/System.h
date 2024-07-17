@@ -22,11 +22,12 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include<string>
-#include<thread>
-#include<opencv2/core/core.hpp>
+#include <string>
+#include <thread>
 #include <unistd.h> 
 #include <sys/resource.h>
+
+#include <opencv2/core/core.hpp>
 
 #include "Tracking.h"
 #include "FrameDrawer.h"
@@ -35,7 +36,7 @@
 #include "LoopClosing.h"
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
-#include "ORBparameters.h"
+#include "TrackingParameters.h"
 
 namespace ORB_SLAM2
 {
@@ -59,7 +60,7 @@ public:
 public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
-    System(const string &strVocFile, const eSensor sensor, const ORBParameters &ORBParams);
+    System(const string &strVocFile, const eSensor sensor, const TrackingParameters &TrackingParams, const std::string &strMapFile, const bool loadMap);
 
     // Proccess the given stereo frame. Images must be synchronized and rectified.
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
@@ -76,11 +77,6 @@ public:
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Returns the camera pose (empty if tracking fails).
     cv::Mat TrackMonocular(const cv::Mat &im, const double &timestamp);
-
-    // This stops local mapping thread (map building) and performs only camera tracking.
-    void ActivateLocalizationMode();
-    // This resumes local mapping thread and performs SLAM again.
-    void DeactivateLocalizationMode();
 
     // Returns true if there have been a big map change (loop closure, global BA)
     // since last call to this function
@@ -112,9 +108,8 @@ public:
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
 
-    // TODO: Save/Load functions
-    // SaveMap(const string &filename);
-    // LoadMap(const string &filename);
+    // Save/Load functions
+    void SaveMap(const string &filename);
 
     // Information from most recent processed frame
     // You can call this right after TrackMonocular (or stereo or RGBD)
@@ -122,7 +117,17 @@ public:
     std::vector<MapPoint*> GetTrackedMapPoints();
     std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
 
+    // Get all map points, for visualization using PCL
+    std::vector<MapPoint*> GetAllMapPoints();
+
 private:
+    // Load a map from a file
+    void LoadMap(const string &filename);
+
+    // This stops local mapping thread (map building) and performs only camera tracking.
+    void ActivateLocalizationMode();
+    // This resumes local mapping thread and performs SLAM again.
+    void DeactivateLocalizationMode();
 
     // Input sensor
     eSensor mSensor;
@@ -169,6 +174,10 @@ private:
     std::vector<MapPoint*> mTrackedMapPoints;
     std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
     std::mutex mMutexState;
+
+    // Map reuse
+    bool mbLoadMap;
+    std::string mMapFileName;
 };
 
 }// namespace ORB_SLAM

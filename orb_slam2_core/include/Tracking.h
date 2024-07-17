@@ -36,7 +36,7 @@
 #include "ORBextractor.h"
 #include "Initializer.h"
 #include "System.h"
-#include "ORBparameters.h"
+#include "TrackingParameters.h"
 
 #include <mutex>
 
@@ -54,7 +54,7 @@ class Tracking
 
 public:
     Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, Map* pMap,
-             KeyFrameDatabase* pKFDB, const int sensor, const ORBParameters& ORBParams);
+             KeyFrameDatabase* pKFDB, const int sensor, const TrackingParameters& ORBParams);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);

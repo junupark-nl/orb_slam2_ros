@@ -18,20 +18,39 @@ void node::initialize() {
 }
 
 void node::initialize_ros_side() {
-    // general initialization, such as:
-    // advertise pose topic
-    // advertise point cloud topic
-    // advertise image topic
-    // advertise camera info topic
-    // advertise tf topic
-    // configure based on ROS params
+    // parameter initialization
+    node_handle_.param("publish_point_cloud", publish_point_cloud_, false);
+    node_handle_.param("publish_rendered_image", publish_rendered_image_, false);
+    node_handle_.param("publish_pose", publish_pose_, false);
+    node_handle_.param("publish_tf", publish_tf_, false);
+
+    node_handle_.param("load_map", load_map_, false);
+    node_handle_.param("map_file_name", map_file_name_, std::string("map.bin"));
+    
+    if(publish_point_cloud_) {
+        // advertise point cloud topic
+    }
+    if(publish_rendered_image_) {
+        // advertise image topic
+    }
+    if(publish_pose_) {
+        // advertise pose topic
+    }
+    if(publish_tf_) {
+        // advertise tf topic
+    }
+
+    // dynamic reconfigure
+    // - tracking mode or not on the fly
+
+    // service server for saving map
 }
 
 void node::initialize_orb_slam2() {
     // initialize ORB-SLAM
-    ORB_SLAM2::ORBParameters orb_parameters;
+    ORB_SLAM2::TrackingParameters tracking_parameters;
     // TODO: set parameters based on ROS params
-    orb_slam_ = new ORB_SLAM2::System("vocabulary", sensor_type_, orb_parameters);
+    orb_slam_ = new ORB_SLAM2::System("vocabulary", sensor_type_, tracking_parameters, map_file_name_, load_map_);
 }
 
 void node::postprocess() {
@@ -39,11 +58,20 @@ void node::postprocess() {
 }
 
 void node::publish() {
-    // publish pose
-    // publish point cloud
-    // publish image
-    // publish camera info
-    // publish tf
+    const auto map_points = orb_slam_->GetAllMapPoints();
+
+    if(publish_point_cloud_) {
+        // publish point cloud
+    }
+    if(publish_rendered_image_) {
+        // publish image
+    }
+    if(publish_pose_) {
+        // publish pose
+    }
+    if(publish_tf_) {
+        // publish tf
+    }
 }
     
 } // namespace orb_slam2_ros

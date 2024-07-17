@@ -18,8 +18,6 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
-
-
 #include "System.h"
 #include "Converter.h"
 #include <thread>
@@ -28,8 +26,8 @@
 namespace ORB_SLAM2
 {
 
-System::System(const string &strVocFile, const eSensor sensor, const ORBParameters &ORBParams)
-    :mSensor(sensor), mbReset(false), mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false)
+System::System(const string &strVocFile, const eSensor sensor, const TrackingParameters &trackingParams,
+    const std::string &strMapFileName, const bool loadMap) : mSensor(sensor), mbReset(false), mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mbLoadMap(loadMap)
 {
     // Output welcome message
     cout << endl <<
@@ -61,12 +59,15 @@ System::System(const string &strVocFile, const eSensor sensor, const ORBParamete
     cout << "Vocabulary loaded!" << endl << endl;
 
     //TODO: load map here before map is set
+    if (mbLoadMap) {
+        LoadMap(strMapFileName);
+    } else {
+        //Create KeyFrame Database
+        mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
 
-    //Create KeyFrame Database
-    mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
-
-    //Create the Map
-    mpMap = new Map();
+        //Create the Map
+        mpMap = new Map();
+    }
 
     //Create Drawers. These are used by the Viewer
     mpFrameDrawer = new FrameDrawer(mpMap);
@@ -74,7 +75,7 @@ System::System(const string &strVocFile, const eSensor sensor, const ORBParamete
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
     mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer,
-                             mpMap, mpKeyFrameDatabase, mSensor, ORBParams);
+                             mpMap, mpKeyFrameDatabase, mSensor, trackingParams);
 
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
@@ -460,6 +461,21 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
 {
     unique_lock<mutex> lock(mMutexState);
     return mTrackedKeyPointsUn;
+}
+
+std::vector<MapPoint*> System::GetAllMapPoints() {
+    return mpMap->GetAllMapPoints();
+}
+
+void System::SaveMap(const string &filename)
+{
+    // TODO: implement
+}
+
+void System::LoadMap(const string &filename)
+{
+    // TODO: implement
+    mMapFileName = filename;  
 }
 
 } //namespace ORB_SLAM
