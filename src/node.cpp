@@ -29,7 +29,9 @@ void node::initialize_ros_side() {
 
 void node::initialize_orb_slam2() {
     // initialize ORB-SLAM
-    orb_slam_ = new ORB_SLAM2::System("vocabulary", "config", sensor_type_);
+    ORB_SLAM2::ORBParameters orb_parameters;
+    // set parameters based on ROS params
+    orb_slam_ = new ORB_SLAM2::System("vocabulary", sensor_type_, orb_parameters);
 }
 
 void node::postprocess() {
