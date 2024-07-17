@@ -60,6 +60,8 @@ System::System(const string &strVocFile, const eSensor sensor, const ORBParamete
     }
     cout << "Vocabulary loaded!" << endl << endl;
 
+    //TODO: load map here before map is set
+
     //Create KeyFrame Database
     mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
 
