@@ -21,11 +21,11 @@ namespace ORB_SLAM2
         float p1;
         float p2;
         float k3;
-        float baseline;
         int fps;
         bool isRGB;
 
         // depth-involved
+        float baseline;
         float depthMapFactor;
         float thDepth;
     };

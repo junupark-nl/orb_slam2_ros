@@ -94,6 +94,8 @@ System::System(const string &strVocFile, const eSensor sensor, const TrackingPar
 
     mpLoopCloser->SetTracker(mpTracker);
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
+
+    mbLocalizationMode = false;
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
@@ -254,12 +256,24 @@ void System::ActivateLocalizationMode()
 {
     unique_lock<mutex> lock(mMutexMode);
     mbActivateLocalizationMode = true;
+    mbLocalizationMode = true;
 }
 
 void System::DeactivateLocalizationMode()
 {
     unique_lock<mutex> lock(mMutexMode);
     mbDeactivateLocalizationMode = true;
+    mbLocalizationMode = false;
+}
+
+void System::TurnLocalizationMode(bool on)
+{
+    if(on && !mbLocalizationMode) {
+        ActivateLocalizationMode();
+    }
+    if(!on && mbLocalizationMode) {
+        DeactivateLocalizationMode();
+    }
 }
 
 bool System::MapChanged()
@@ -467,9 +481,19 @@ std::vector<MapPoint*> System::GetAllMapPoints() {
     return mpMap->GetAllMapPoints();
 }
 
-void System::SaveMap(const string &filename)
+cv::Mat System::GetRenderedImage() {
+    return mpFrameDrawer->DrawFrame();
+}
+
+cv::Mat System::GetCurrentPoseCvMat() {
+    // TODO: save it as a member variable if needed
+    return mpTracker->mCurrentFrame.mTcw.clone();
+}
+
+bool System::SaveMap(const string &filename)
 {
     // TODO: implement
+    return true;
 }
 
 void System::LoadMap(const string &filename)

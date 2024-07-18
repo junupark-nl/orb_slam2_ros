@@ -109,7 +109,7 @@ public:
     void SaveTrajectoryKITTI(const string &filename);
 
     // Save/Load functions
-    void SaveMap(const string &filename);
+    bool SaveMap(const string &filename);
 
     // Information from most recent processed frame
     // You can call this right after TrackMonocular (or stereo or RGBD)
@@ -119,6 +119,15 @@ public:
 
     // Get all map points, for visualization using PCL
     std::vector<MapPoint*> GetAllMapPoints();
+
+    // Get rendered image
+    cv::Mat GetRenderedImage();
+
+    // Get current pose
+    cv::Mat GetCurrentPoseCvMat();
+
+    // This is a wrapper of ActivateLocalizationMode & DeactivateLocalizationMode
+    void TurnLocalizationMode(bool on);
 
 private:
     // Load a map from a file
@@ -168,6 +177,7 @@ private:
     std::mutex mMutexMode;
     bool mbActivateLocalizationMode;
     bool mbDeactivateLocalizationMode;
+    bool mbLocalizationMode;
 
     // Tracking state
     int mTrackingState;

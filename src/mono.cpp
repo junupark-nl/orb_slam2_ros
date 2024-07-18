@@ -25,7 +25,6 @@ void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // pass the image to ORB-SLAM
     orb_slam_->TrackMonocular(cv_ptr->image, msg->header.stamp.toSec());
 
-    postprocess();
     publish();
 }
 
