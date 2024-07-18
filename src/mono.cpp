@@ -22,10 +22,12 @@ void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
         return;
     }
 
+    // mark the time of the last processed image
+    latest_image_time_ = msg->header.stamp;
     // pass the image to ORB-SLAM
-    orb_slam_->TrackMonocular(cv_ptr->image, msg->header.stamp.toSec());
+    latest_Tcw_ = orb_slam_->TrackMonocular(cv_ptr->image, msg->header.stamp.toSec());
 
-    publish();
+    publish_topics();
 }
 
 } // namespace orb_slam2_ros
@@ -39,7 +41,6 @@ int main(int argc, char **argv)
     image_transport::ImageTransport image_transport(node_handle);
 
     orb_slam2_ros::mono slam_node(node_handle, image_transport, ORB_SLAM2::System::MONOCULAR);
-
     slam_node.initialize();
 
     ros::spin();

@@ -5,6 +5,9 @@ namespace orb_slam2_ros {
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type) {
     node_name_ = ros::this_node::getName();
+    // default values of dynamically reconfigured parameters
+    save_on_exit_ = false;
+    min_observations_per_point_ = 2;
 }
 
 node::~node() {
@@ -26,6 +29,9 @@ void node::initialize_ros_side() {
     node_handle_.param(node_name_+"/publish_rendered_image", publish_rendered_image_, false);
     node_handle_.param(node_name_+"/publish_pose", publish_pose_, false);
     node_handle_.param(node_name_+"/publish_tf", publish_tf_, false);
+    if (publish_tf_ && !publish_pose_) { // you simply don't publish tf without pose
+        publish_pose_ = true;
+    }
     // Map loading parameters
     node_handle_.param(node_name_+"/load_map", load_map_, false);
     node_handle_.param(node_name_+"/map_file_name", map_file_name_, std::string("map.bin"));
@@ -53,7 +59,6 @@ void node::initialize_orb_slam2() {
     // initialize ORB-SLAM
     load_orb_slam_parameters();
     orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_, load_map_);
-    save_on_exit_ = false;
 }
 
 void node::load_orb_slam_parameters() {
@@ -100,44 +105,137 @@ bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros:
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
     orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
     save_on_exit_ = config.save_trajectory_on_exit;
+    min_observations_per_point_ = config.min_observations_per_point;
 }
 
-void node::publish() {
-
-    if(publish_map_) {
-        publish_point_cloud(orb_slam_->GetAllMapPoints());
-    }
+void node::publish_topics() {
     if(publish_rendered_image_) {
         publish_rendered_image(orb_slam_->GetRenderedImage());
     }
     if(publish_pose_) {
-        publish_pose(orb_slam_->GetCurrentPoseCvMat());
+        publish_pose(latest_Tcw_);
     }
-    if(publish_tf_) {
-        publish_tf(orb_slam_->GetCurrentPoseCvMat());
+    if(publish_map_) {
+        publish_point_cloud(orb_slam_->GetAllMapPoints());
     }
-}
-
-void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
-    // TODO: convert map_points to point cloud
-    // publish point cloud
 }
 
 void node::publish_rendered_image(cv::Mat image) {
-    // TODO: convert cv::Mat to sensor_msgs::Image
-    // publish rendered image
+    std_msgs::Header header;
+    header.stamp = latest_image_time_;
+    // TODO: TF-stuffs
+    header.frame_id = "map";
+    sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
+    rendered_image_publisher_.publish(image_msg);
 }
 
-void node::publish_pose(cv::Mat pose) {
-    // TODO: convert cv::Mat to geometry_msgs::PoseStamped
-    // publish pose
+void node::publish_pose(cv::Mat Tcw) {
+    // TODO: TF-stuffs
+    update_tf();
+    geometry_msgs::PoseStamped pose_msg;
+    pose_publisher_.publish(tf2::toMsg(latest_tf_stamped_, pose_msg));
+
+    if (publish_tf_) {
+        geometry_msgs::TransformStamped tf_msg = tf2::toMsg(latest_tf_stamped_);
+        // TODO: TF-stuffs
+        tf_msg.child_frame_id = "ifs";
+
+        static tf2_ros::TransformBroadcaster tf_broadcaster;
+        tf_broadcaster.sendTransform(tf_msg);
+    }
 }
 
-void node::publish_tf(cv::Mat pose) {
-    // static tf2_ros::TransformBroadcaster tf_broadcater;
-    // TODO: convert cv::Mat to tf
-    // publish tf
-    // geometry_msgs::TransformStamped transformStamped = tf2::toMsg(tf);
-    // tf_broadcaster.sendTransform();
+void node::update_tf() {
+    latest_tf_ = convert_orb_pose_to_tf(latest_Tcw_);
+    latest_tf_stamped_ = tf2::Stamped<tf2::Transform>(latest_tf_, latest_image_time_, "map");
+}
+
+void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
+    // TODO: convert map_points to point cloud correctly via transform
+    if (map_points.empty()) {
+        return;
+    }
+    sensor_msgs::PointCloud2 point_cloud;
+
+    const int num_channels = 3; // x y z
+    point_cloud.header.stamp = latest_image_time_;
+    // TODO: TF-stuffs
+    point_cloud.header.frame_id = "map";;
+    point_cloud.height = 1;
+    point_cloud.width = map_points.size();
+    point_cloud.is_bigendian = false;
+    point_cloud.is_dense = true;
+    point_cloud.point_step = num_channels * sizeof(float);
+    point_cloud.row_step = point_cloud.point_step * point_cloud.width;
+    point_cloud.fields.resize(num_channels);
+
+    std::string channel_id[] = { "x", "y", "z"};
+    for (int i = 0; i<num_channels; i++) {
+        point_cloud.fields[i].name = channel_id[i];
+        point_cloud.fields[i].offset = i * sizeof(float);
+        point_cloud.fields[i].count = 1;
+        point_cloud.fields[i].datatype = sensor_msgs::PointField::FLOAT32;
+    }
+
+    point_cloud.data.resize(point_cloud.row_step * point_cloud.height);
+
+    unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
+
+    float data_array[num_channels];
+    for (unsigned int i=0; i<map_points.size(); i++) {
+        if (map_points[i] == nullptr) {
+            continue;
+        }
+        if (map_points[i]->nObs >= min_observations_per_point_) {
+            const cv::Mat point_world = map_points[i]->GetWorldPos();
+            // TODO: rotation? frame convention?
+            data_array[0] = point_world.at<float>(0);
+            data_array[1] = point_world.at<float>(1);
+            data_array[2] = point_world.at<float>(2);
+
+            memcpy(cloud_data_ptr+(i*point_cloud.point_step), data_array, num_channels*sizeof(float));
+        }
+    }
+
+    if(!publish_pose_) {
+        update_tf();
+    }
+    
+    sensor_msgs::PointCloud2 point_cloud_transformed;
+    tf2::doTransform(point_cloud, point_cloud_transformed, tf2::toMsg(latest_tf_stamped_));
+    map_publisher_.publish(point_cloud_transformed);
+}
+
+tf2::Transform node::convert_orb_pose_to_tf(cv::Mat Tcw){
+    if (Tcw.empty()) {
+        return tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
+    }
+    cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
+    cv::Mat tcw = Tcw.rowRange(0,3).col(3);
+
+    cv::Mat Rwc = Rcw.t();
+    cv::Mat twc = -Rwc*tcw;
+
+    tf2::Matrix3x3 Rwc_tf;
+    Rwc_tf.setValue(Rwc.at<float>(0, 0), Rwc.at<float>(0, 1), Rwc.at<float>(0, 2),
+                    Rwc.at<float>(1, 0), Rwc.at<float>(1, 1), Rwc.at<float>(1, 2),
+                    Rwc.at<float>(2, 0), Rwc.at<float>(2, 1), Rwc.at<float>(2, 2));
+    tf2::Vector3 twc_tf(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
+
+    const tf2::Matrix3x3 R_orb_to_tf(0, 0, 1,
+                                      -1, 0, 0,
+                                      0, -1, 0);
+
+    return tf2::Transform(R_orb_to_tf * Rwc_tf, R_orb_to_tf * twc_tf);
+
+    // Conversion from ORB_SLAM2 to ROS(ENU)
+    //      ORB-SLAM2:  X-right,    Y-down,     Z-forward
+    //      ROS ENU:    X-east,     Y-north,    Z-up
+    // Transformation: 
+    //      X_enu = Z_orb
+    //      Y_enu = -X_orb
+    //      Z_enu = -Y_orb
+    // but one is local frame (camera) and the other is inertial (world or map).. this is wierd
+    // Do we have to assume that initial pose (of ORB_SLAM2) is identity? and aligned to ENU?
 }
 } // namespace orb_slam2_ros

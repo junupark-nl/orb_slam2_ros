@@ -485,11 +485,6 @@ cv::Mat System::GetRenderedImage() {
     return mpFrameDrawer->DrawFrame();
 }
 
-cv::Mat System::GetCurrentPoseCvMat() {
-    // TODO: save it as a member variable if needed
-    return mpTracker->mCurrentFrame.mTcw.clone();
-}
-
 bool System::SaveMap(const string &filename)
 {
     // TODO: implement

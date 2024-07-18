@@ -123,9 +123,6 @@ public:
     // Get rendered image
     cv::Mat GetRenderedImage();
 
-    // Get current pose
-    cv::Mat GetCurrentPoseCvMat();
-
     // This is a wrapper of ActivateLocalizationMode & DeactivateLocalizationMode
     void TurnLocalizationMode(bool on);
 
