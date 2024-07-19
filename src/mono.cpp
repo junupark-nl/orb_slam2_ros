@@ -25,7 +25,7 @@ void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // mark the time of the last processed image
     latest_image_time_ = msg->header.stamp;
     // pass the image to ORB-SLAM
-    latest_Tcw_ = orb_slam_->TrackMonocular(cv_ptr->image, msg->header.stamp.toSec());
+    latest_Tcw_ = orb_slam_->TrackMonocular(cv_ptr->image, latest_image_time_.toSec());
 
     publish_topics();
 }

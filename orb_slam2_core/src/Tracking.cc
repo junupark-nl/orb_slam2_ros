@@ -41,35 +41,35 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
-Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const int sensor, const TrackingParameters& ORBParams):
+Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const int sensor, const TrackingParameters& parameter):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys),
     mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0)
 {
     // TODO: I think I can resue these blocks as a function
     cv::Mat K = cv::Mat::eye(3,3,CV_32F);
-    K.at<float>(0,0) = ORBParams.fx;
-    K.at<float>(1,1) = ORBParams.fy;
-    K.at<float>(0,2) = ORBParams.cx;
-    K.at<float>(1,2) = ORBParams.cy;
+    K.at<float>(0,0) = parameter.fx;
+    K.at<float>(1,1) = parameter.fy;
+    K.at<float>(0,2) = parameter.cx;
+    K.at<float>(1,2) = parameter.cy;
     K.copyTo(mK);
 
     cv::Mat DistCoef(4,1,CV_32F);
-    DistCoef.at<float>(0) = ORBParams.k1;
-    DistCoef.at<float>(1) = ORBParams.k2;
-    DistCoef.at<float>(2) = ORBParams.p1;
-    DistCoef.at<float>(3) = ORBParams.p2;
+    DistCoef.at<float>(0) = parameter.k1;
+    DistCoef.at<float>(1) = parameter.k2;
+    DistCoef.at<float>(2) = parameter.p1;
+    DistCoef.at<float>(3) = parameter.p2;
     
-    if(ORBParams.k3!=0)
+    if(parameter.k3!=0)
     {
         DistCoef.resize(5);
-        DistCoef.at<float>(4) = ORBParams.k3;
+        DistCoef.at<float>(4) = parameter.k3;
     }
     DistCoef.copyTo(mDistCoef);
 
-    mbf = ORBParams.baseline;
+    mbf = parameter.baseline;
 
-    float fps = ORBParams.fps;
+    float fps = parameter.fps;
     if(fps==0)
         fps=30;
 
@@ -91,7 +91,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << "- fps: " << fps << endl;
     cout << "- bf: " << mbf << endl;
 
-    mbRGB = ORBParams.isRGB;
+    mbRGB = parameter.isRGB;
     if(mbRGB)
         cout << "- color order: RGB (ignored if grayscale)" << endl;
     else
@@ -99,11 +99,11 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 
     // Load ORB parameters
 
-    int nFeatures = ORBParams.nFeatures;
-    float fScaleFactor = ORBParams.scaleFactor;
-    int nLevels = ORBParams.nLevels;
-    int fIniThFAST = ORBParams.iniThFAST;
-    int fMinThFAST = ORBParams.minThFAST;
+    int nFeatures = parameter.nFeatures;
+    float fScaleFactor = parameter.scaleFactor;
+    int nLevels = parameter.nLevels;
+    int fIniThFAST = parameter.iniThFAST;
+    int fMinThFAST = parameter.minThFAST;
 
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -120,16 +120,16 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
     cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
 
-    mThDepth = ORBParams.thDepth;
+    mThDepth = parameter.thDepth;
     if(sensor==System::STEREO || sensor==System::RGBD)
     {
-        mThDepth = mbf*(float)mThDepth/ORBParams.fx;
+        mThDepth = mbf*(float)mThDepth/parameter.fx;
         cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
     }
 
     if(sensor==System::RGBD)
     {
-        mDepthMapFactor = ORBParams.depthMapFactor;
+        mDepthMapFactor = parameter.depthMapFactor;
         if(fabs(mDepthMapFactor)<1e-5)
             mDepthMapFactor=1;
         else
@@ -1518,7 +1518,7 @@ void Tracking::Reset()
     mlFrameTimes.clear();
     mlbLost.clear();
 }
-
+/* unused when using the ROS interface
 void Tracking::ChangeCalibration(const string &strSettingPath)
 {
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
@@ -1551,6 +1551,7 @@ void Tracking::ChangeCalibration(const string &strSettingPath)
 
     Frame::mbInitialComputations = true;
 }
+*/
 
 void Tracking::InformOnlyTracking(const bool &flag)
 {

@@ -15,11 +15,6 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 
-// Synchronization of a pair of stereo (or RGBD) images
-#include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-
 // messages
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>

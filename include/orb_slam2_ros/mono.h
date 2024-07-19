@@ -9,8 +9,8 @@ class mono: public node {
     public:
         mono(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
         ~mono();
-        void callback_image(const sensor_msgs::ImageConstPtr &msg);
     private:
+        void callback_image(const sensor_msgs::ImageConstPtr &msg);
         image_transport::Subscriber image_subscriber_;
 };
 

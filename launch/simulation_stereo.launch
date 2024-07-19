@@ -1,6 +1,8 @@
 <launch>
     <!-- Define arguments with default values -->
-    <arg name="image_topic" default="/camera/image_raw" />
+    <arg name="left_image_topic" default="/camera/left/image_raw" />
+    <arg name="right_image_topic" default="/camera/right/image_raw" />
+    <arg name="baseline" default="0.1" />
     <arg name="fx" default="632.7927856445312" />
     <arg name="fy" default="626.8605346679688" />
     <arg name="cx" default="311.43603515625" />
@@ -16,9 +18,10 @@
     <arg name="load_map" default="false" />
     <arg name="map_file_name" default="$(find orb_slam2_ros)/resource/map.bin" />
 
-    <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
+    <node name="orb_slam2_stereo" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo" output="screen">
         <!-- Use the argument for remapping -->
-        <remap from="/camera/image_raw" to="$(arg image_topic)" />
+        <remap from="/camera/left/image_raw" to="$(arg left_image_topic)" />
+        <remap from="/camera/right/image_raw" to="$(arg right_image_topic)" />
 
         <!-- static parameters -->
         <param name="publish_map" type="bool" value="true" />
@@ -37,7 +40,8 @@
         <param name="ORB/nLevels" type="int" value="8" />
         <param name="ORB/iniThFAST" type="int" value="20" />
         <param name="ORB/minThFAST" type="int" value="7" />
-        <!-- you don't need depth parameters for monocular case -->
+        <param name="ORB/thDepth" type="double" value="35.0" />
+        <param name="ORB/depthMapFactor" type="double" value="1.0" />
 
         <!-- Camera parameters -->
         <!-- Camera calibration and distortion parameters (OpenCV) -->
@@ -50,6 +54,7 @@
         <param name="camera/p1" type="double" value="$(arg p1)" />
         <param name="camera/p2" type="double" value="$(arg p2)" />
         <param name="camera/k3" type="double" value="$(arg k3)" />
+        <param name="camera/baseline" type="double" value="$(arg baseline)" />
 
         <!-- Camera fps and rgb encoding(0: BGR, 1: RGB. It is ignored if images are grayscale) -->
         <param name="camera/fps" type="int" value="$(arg fps)" />

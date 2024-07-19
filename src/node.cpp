@@ -90,8 +90,8 @@ void node::load_orb_slam_parameters() {
     // depth-involved
     if (sensor_type_ == ORB_SLAM2::System::STEREO || sensor_type_ == ORB_SLAM2::System::RGBD) {
         node_handle_.param(node_name_+"/camera/baseline", orb_slam_tracking_parameters_.baseline, 0.12F);
-        node_handle_.param(node_name_+"/ORBextractor/thDepth", orb_slam_tracking_parameters_.thDepth, 35.0F);
-        node_handle_.param(node_name_+"/ORBextractor/depthMapFactor", orb_slam_tracking_parameters_.depthMapFactor, 1.0F);
+        node_handle_.param(node_name_+"/ORB/thDepth", orb_slam_tracking_parameters_.thDepth, 35.0F);
+        node_handle_.param(node_name_+"/ORB/depthMapFactor", orb_slam_tracking_parameters_.depthMapFactor, 1.0F);
     }
 }
 
