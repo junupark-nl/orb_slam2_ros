@@ -55,3 +55,9 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# ORB SLAM2 Vocabulary file(s)
+orb_slam2_core/Vocabulary/ORBvoc.*
+
+# ORB SLAM2 Map files (generated)
+resource/*.bin

@@ -1,6 +1,24 @@
 <launch>
+    <!-- Define arguments with default values -->
+    <arg name="image_topic" default="/camera/image_raw" />
+    <arg name="camera_fx" default="632.7927856445312" />
+    <arg name="camera_fy" default="626.8605346679688" />
+    <arg name="camera_cx" default="311.43603515625" />
+    <arg name="camera_cy" default="248.0950164794922" />
+    <arg name="camera_k1" default="-0.09097914397716522" />
+    <arg name="camera_k2" default="0.06503549218177795" />
+    <arg name="camera_p1" default="0.000849052332341671" />
+    <arg name="camera_p2" default="0.001785792293958366" />
+    <arg name="camera_k3" default="0.0" />
+    <arg name="camera_fps" default="30" />
+    <arg name="camera_rgb_encoding" default="true" />
+
+    <arg name="load_map" default="false" />
+    <arg name="map_file_name" default="$(find orb_slam2_ros)/resource/map.bin" />
+
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
-        <remap from="/camera/image_raw" to="/camera/rgb/image_raw" />
+        <!-- Use the argument for remapping -->
+        <remap from="/camera/image_raw" to="$(arg image_topic)" />
 
         <!-- static parameters -->
         <param name="publish_map" type="bool" value="true" />
@@ -8,8 +26,8 @@
         <param name="publish_pose" type="bool" value="true" />
         <param name="publish_tf" type="bool" value="false" />
 
-        <param name="load_map" type="bool" value="false" />
-        <param name="map_file_name" type="string" value="map.bin" />
+        <param name="load_map" type="bool" value="$(arg load_map)" />
+        <param name="map_file_name" type="string" value="$(arg map_file_name)" />
 
         <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
 
@@ -23,19 +41,18 @@
 
         <!-- Camera parameters -->
         <!-- Camera calibration and distortion parameters (OpenCV) -->
-        <param name="camera/fx" type="double" value="632.7927856445312" />
-        <param name="camera/fy" type="double" value="626.8605346679688" />
-        <param name="camera/cx" type="double" value="311.43603515625" />
-        <param name="camera/cy" type="double" value="248.0950164794922" />
-        <!-- Camera calibration and distortion parameters (OpenCV) -->
-        <param name="camera/k1" type="double" value="-0.09097914397716522" />
-        <param name="camera/k2" type="double" value="0.06503549218177795" />
-        <param name="camera/p1" type="double" value="0.000849052332341671" />
-        <param name="camera/p2" type="double" value="0.001785792293958366" />
-        <param name="camera/k3" type="double" value="0.0" />
+        <param name="camera/fx" type="double" value="$(arg camera_fx)" />
+        <param name="camera/fy" type="double" value="$(arg camera_fy)" />
+        <param name="camera/cx" type="double" value="$(arg camera_cx)" />
+        <param name="camera/cy" type="double" value="$(arg camera_cy)" />
+        <param name="camera/k1" type="double" value="$(arg camera_k1)" />
+        <param name="camera/k2" type="double" value="$(arg camera_k2)" />
+        <param name="camera/p1" type="double" value="$(arg camera_p1)" />
+        <param name="camera/p2" type="double" value="$(arg camera_p2)" />
+        <param name="camera/k3" type="double" value="$(arg camera_k3)" />
 
         <!-- Camera fps and rgb encoding(0: BGR, 1: RGB. It is ignored if images are grayscale) -->
-        <param name="camera/fps" type="int" value="30" />
-        <param name="camera/rgb_encoding" type="bool" value="true" />
+        <param name="camera/fps" type="int" value="$(arg camera_fps)" />
+        <param name="camera/rgb_encoding" type="bool" value="$(arg camera_rgb_encoding)" />
     </node>
 </launch>

@@ -81,6 +81,7 @@ class node {
         dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
         bool save_on_exit_;
         int min_observations_per_point_;
+        bool dynamic_reconfigure_initial_setup_;
 
         // ros flags
         bool publish_map_;

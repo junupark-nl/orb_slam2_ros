@@ -59,8 +59,8 @@ System::System(const string &strVocFile, const eSensor sensor, const TrackingPar
     cout << "Vocabulary loaded!" << endl << endl;
 
     //TODO: load map here before map is set
-    if (mbLoadMap) {
-        LoadMap(strMapFileName);
+    if (mbLoadMap && LoadMap(strMapFileName)) {
+        std::cout << "Using map: " << strMapFileName << " with " << mpMap->MapPointsInMap() << " points\n" << std::endl;
     } else {
         //Create KeyFrame Database
         mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
@@ -487,14 +487,51 @@ cv::Mat System::GetRenderedImage() {
 
 bool System::SaveMap(const string &filename)
 {
-    // TODO: implement
+    unique_lock<mutex>MapPointGlobal(MapPoint::mGlobalMutex);
+    std::ofstream out(filename, std::ios_base::binary);
+    if (!out) {
+        std::cerr << "Cannot write to map file: " << filename << std::endl;
+        return false;
+    }
+    try {
+        std::cout << "Saving map file: " << filename << std::flush;
+        boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+        oa << mpMap;
+        oa << mpKeyFrameDatabase;
+        std::cout << " ... done" << std::endl;
+        out.close();
+    } catch (...) {
+        std::cerr << "Unknows exeption" << std::endl;
+        return false;
+    }
+
     return true;
 }
 
-void System::LoadMap(const string &filename)
+bool System::LoadMap(const string &filename)
 {
-    // TODO: implement
-    mMapFileName = filename;  
+    mMapFileName = filename;
+    unique_lock<mutex>MapPointGlobal(MapPoint::mGlobalMutex);
+
+    std::ifstream in(filename, std::ios_base::binary);
+    if (!in) {
+        cerr << "Cannot open map file: " << filename << " , you need create it first!" << std::endl;
+        return false;
+    }
+
+    try {
+        std::cout << "Loading map file: " << filename << std::flush;
+        boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+        ia >> mpMap;
+        ia >> mpKeyFrameDatabase;
+        mpKeyFrameDatabase->SetORBvocabulary(mpVocabulary);
+        std::cout << " ... done" << std::endl;
+    } catch (...) {
+        std::cerr << "Unknows exeption" << std::endl;
+        return false;
+    }
+
+    return true;
 }
 
 } //namespace ORB_SLAM

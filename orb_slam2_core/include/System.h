@@ -128,7 +128,7 @@ public:
 
 private:
     // Load a map from a file
-    void LoadMap(const string &filename);
+    bool LoadMap(const string &filename);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();

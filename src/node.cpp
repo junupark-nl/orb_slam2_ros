@@ -8,6 +8,7 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
     // default values of dynamically reconfigured parameters
     save_on_exit_ = false;
     min_observations_per_point_ = 2;
+    dynamic_reconfigure_initial_setup_ = true;
 }
 
 node::~node() {
@@ -103,9 +104,17 @@ bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros:
 }
 
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
-    orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
+    if (dynamic_reconfigure_initial_setup_) {
+        dynamic_reconfigure_initial_setup_ = false;
+    } else {
+        orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
+    }
     save_on_exit_ = config.save_trajectory_on_exit;
     min_observations_per_point_ = config.min_observations_per_point;
+    ROS_INFO("ORB_SLAM2_ROS reconfiguration.\r\n\t-SLAM localization mode:\t%s\r\n\t-save trajectory on exit:\t%s\r\n\t-min observation points:\t%d", 
+        config.enable_localization_mode ? "True" : "False", 
+        config.save_trajectory_on_exit ? "True" : "False", 
+        config.min_observations_per_point);
 }
 
 void node::publish_topics() {
