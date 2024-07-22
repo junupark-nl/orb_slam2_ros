@@ -9,6 +9,9 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
     save_on_exit_ = false;
     min_observations_per_point_ = 2;
     dynamic_reconfigure_initial_setup_ = true;
+
+    // initial tf
+    latest_tf_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
 }
 
 node::~node() {
@@ -132,22 +135,19 @@ void node::publish_topics() {
 void node::publish_rendered_image(cv::Mat image) {
     std_msgs::Header header;
     header.stamp = latest_image_time_;
-    // TODO: TF-stuffs
-    header.frame_id = "map";
+    header.frame_id = "map"; // TODO: TF-stuffs
     sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
     rendered_image_publisher_.publish(image_msg);
 }
 
 void node::publish_pose(cv::Mat Tcw) {
-    // TODO: TF-stuffs
     update_tf();
     geometry_msgs::PoseStamped pose_msg;
-    pose_publisher_.publish(tf2::toMsg(latest_tf_stamped_, pose_msg));
+    pose_publisher_.publish(tf2::toMsg(latest_stamped_tf_, pose_msg));
 
     if (publish_tf_) {
-        geometry_msgs::TransformStamped tf_msg = tf2::toMsg(latest_tf_stamped_);
-        // TODO: TF-stuffs
-        tf_msg.child_frame_id = "ifs";
+        geometry_msgs::TransformStamped tf_msg = tf2::toMsg(latest_stamped_tf_);
+        tf_msg.child_frame_id = "ifs"; // TODO: TF-stuffs
 
         static tf2_ros::TransformBroadcaster tf_broadcaster;
         tf_broadcaster.sendTransform(tf_msg);
@@ -155,8 +155,8 @@ void node::publish_pose(cv::Mat Tcw) {
 }
 
 void node::update_tf() {
-    latest_tf_ = convert_orb_pose_to_tf(latest_Tcw_);
-    latest_tf_stamped_ = tf2::Stamped<tf2::Transform>(latest_tf_, latest_image_time_, "map");
+    latest_tf_ = convert_orb_pose_to_ros_tf(latest_Tcw_);
+    latest_stamped_tf_ = tf2::Stamped<tf2::Transform>(latest_tf_, latest_image_time_, "map"); // TODO: TF-stuffs
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
@@ -168,7 +168,6 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
     const int num_channels = 3; // x y z
     point_cloud.header.stamp = latest_image_time_;
-    // TODO: TF-stuffs
     point_cloud.header.frame_id = "map";;
     point_cloud.height = 1;
     point_cloud.width = map_points.size();
@@ -188,54 +187,45 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
     point_cloud.data.resize(point_cloud.row_step * point_cloud.height);
 
-    unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
 
     float data_array[num_channels];
+    unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
     for (unsigned int i=0; i<map_points.size(); i++) {
         if (map_points[i] == nullptr) {
             continue;
         }
         if (map_points[i]->nObs >= min_observations_per_point_) {
             const cv::Mat point_world = map_points[i]->GetWorldPos();
-            // TODO: rotation? frame convention?
+#ifdef TRANSFORM_POINT_CLOUT_VIA_TF
             data_array[0] = point_world.at<float>(0);
             data_array[1] = point_world.at<float>(1);
             data_array[2] = point_world.at<float>(2);
-
+#else
+            data_array[0] = point_world.at<float>(2);
+            data_array[1] = -point_world.at<float>(0);
+            data_array[2] = -point_world.at<float>(1);
+#endif
             memcpy(cloud_data_ptr+(i*point_cloud.point_step), data_array, num_channels*sizeof(float));
         }
     }
 
-    if(!publish_pose_) {
-        update_tf();
-    }
-    
+#ifdef TRANSFORM_POINT_CLOUT_VIA_TF
+    tf2::Quaternion quaternion;
+    tf2::Transform transform;
+    R_orb_to_ros_.getRotation(quaternion);
+    transform.setRotation(quaternion);
+    transform.setOrigin(tf2::Vector3(0.0, 0.0, 0.0));  // No translation
+    tf2::Stamped<tf2::Transform> stamped_trasnform(transform, latest_image_time_, "map");
+
     sensor_msgs::PointCloud2 point_cloud_transformed;
-    tf2::doTransform(point_cloud, point_cloud_transformed, tf2::toMsg(latest_tf_stamped_));
+    tf2::doTransform(point_cloud, point_cloud_transformed, tf2::toMsg(stamped_trasnform));
     map_publisher_.publish(point_cloud_transformed);
+#else
+    map_publisher_.publish(point_cloud);
+#endif
 }
 
-tf2::Transform node::convert_orb_pose_to_tf(cv::Mat Tcw){
-    if (Tcw.empty()) {
-        return tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
-    }
-    cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
-    cv::Mat tcw = Tcw.rowRange(0,3).col(3);
-
-    cv::Mat Rwc = Rcw.t();
-    cv::Mat twc = -Rwc*tcw;
-
-    tf2::Matrix3x3 Rwc_tf;
-    Rwc_tf.setValue(Rwc.at<float>(0, 0), Rwc.at<float>(0, 1), Rwc.at<float>(0, 2),
-                    Rwc.at<float>(1, 0), Rwc.at<float>(1, 1), Rwc.at<float>(1, 2),
-                    Rwc.at<float>(2, 0), Rwc.at<float>(2, 1), Rwc.at<float>(2, 2));
-    tf2::Vector3 twc_tf(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
-
-    const tf2::Matrix3x3 R_orb_to_tf(0, 0, 1,
-                                      -1, 0, 0,
-                                      0, -1, 0);
-
-    return tf2::Transform(R_orb_to_tf * Rwc_tf, R_orb_to_tf * twc_tf);
+tf2::Transform node::convert_orb_pose_to_ros_tf(cv::Mat Tcw){
 
     // Conversion from ORB_SLAM2 to ROS(ENU)
     //      ORB-SLAM2:  X-right,    Y-down,     Z-forward
@@ -245,6 +235,25 @@ tf2::Transform node::convert_orb_pose_to_tf(cv::Mat Tcw){
     //      Y_enu = -X_orb
     //      Z_enu = -Y_orb
     // but one is local frame (camera) and the other is inertial (world or map).. this is wierd
-    // Do we have to assume that initial pose (of ORB_SLAM2) is identity? and aligned to ENU?
+    // Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes
+
+    if (Tcw.empty()) {
+        return latest_tf_;
+    }
+    // Ensure Tcw is 4x4
+    assert(Tcw.cols == 4 && Tcw.rows == 4);
+
+    // Convert rotation matrix to tf2::Matrix3x3
+    tf2::Matrix3x3 tf2_Rcw(
+        Tcw.at<float>(0, 0), Tcw.at<float>(0, 1), Tcw.at<float>(0, 2),
+        Tcw.at<float>(1, 0), Tcw.at<float>(1, 1), Tcw.at<float>(1, 2),
+        Tcw.at<float>(2, 0), Tcw.at<float>(2, 1), Tcw.at<float>(2, 2)
+    );
+    tf2::Vector3 tf2_tcw(Tcw.at<float>(0, 3), Tcw.at<float>(1, 3), Tcw.at<float>(2, 3));
+    tf2::Matrix3x3 tf2_Rwc = tf2_Rcw.transpose();
+    tf2::Vector3 tf2_twc = -(tf2_Rwc * tf2_tcw);
+
+    // Rotation matrix should be left multiplied by R_orb_to_ros_ and right multiplied by its transpose to get correct rotation
+    return tf2::Transform(R_orb_to_ros_ * tf2_Rwc * R_orb_to_ros_.transpose(), R_orb_to_ros_ * tf2_twc);
 }
 } // namespace orb_slam2_ros

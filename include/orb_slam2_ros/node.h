@@ -26,8 +26,15 @@
 
 #include "System.h"
 
+#define TRANSFORM_POINT_CLOUT_VIA_TF
+#undef TRANSFORM_POINT_CLOUT_VIA_TF
+
 namespace orb_slam2_ros {
 
+// Adjust frame convention from ORB-SLAM2 to ROS (ENU)
+static const tf2::Matrix3x3 R_orb_to_ros_(0, 0, 1,
+                                        -1, 0, 0,
+                                        0,-1, 0);
 class node {
     public:
         node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
@@ -50,7 +57,7 @@ class node {
         void publish_rendered_image(cv::Mat image);
         void publish_pose(cv::Mat Tcw);
         void update_tf();
-        tf2::Transform convert_orb_pose_to_tf(cv::Mat Tcw);
+        tf2::Transform convert_orb_pose_to_ros_tf(cv::Mat Tcw);
 
         bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
         void reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);
@@ -93,7 +100,7 @@ class node {
 
         // slam-derived
         tf2::Transform latest_tf_;
-        tf2::Stamped<tf2::Transform> latest_tf_stamped_;
+        tf2::Stamped<tf2::Transform> latest_stamped_tf_;
 };
 
 } // namespace orb_slam2_ros
