@@ -61,3 +61,6 @@ orb_slam2_core/Vocabulary/ORBvoc.*
 
 # ORB SLAM2 Map files (generated)
 resource/*.bin
+# calibration test files (metadata, images, etc.)
+resource/**/*.txt
+resource/**/*.jpg
