@@ -78,10 +78,10 @@ void node::load_orb_slam_parameters() {
     node_handle_.param(node_name_+"/ORB/minThFAST", orb_slam_tracking_parameters_.minThFAST, 7);
 
     // camera parameters
-    node_handle_.param(node_name_+"/camera/fx", orb_slam_tracking_parameters_.fx, 520.9F);
-    node_handle_.param(node_name_+"/camera/fy", orb_slam_tracking_parameters_.fy, 521.0F);
-    node_handle_.param(node_name_+"/camera/cx", orb_slam_tracking_parameters_.cx, 325.1F);
-    node_handle_.param(node_name_+"/camera/cy", orb_slam_tracking_parameters_.cy, 249.7F);
+    node_handle_.param(node_name_+"/camera/fx", orb_slam_tracking_parameters_.fx, 381.36246688113556F);
+    node_handle_.param(node_name_+"/camera/fy", orb_slam_tracking_parameters_.fy, 381.36246688113556F);
+    node_handle_.param(node_name_+"/camera/cx", orb_slam_tracking_parameters_.cx, 320.5F);
+    node_handle_.param(node_name_+"/camera/cy", orb_slam_tracking_parameters_.cy, 240.5F);
     node_handle_.param(node_name_+"/camera/k1", orb_slam_tracking_parameters_.k1, 0.2624F);
     node_handle_.param(node_name_+"/camera/k2", orb_slam_tracking_parameters_.k2, -0.9531F);
     node_handle_.param(node_name_+"/camera/p1", orb_slam_tracking_parameters_.p1, -0.0054F);

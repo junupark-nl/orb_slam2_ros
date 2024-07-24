@@ -207,6 +207,13 @@ target_link_libraries(${PROJECT_NAME}_mono
   ${LIBS_ROS}
 )
 
+add_executable(${PROJECT_NAME}_mono_fisheye_adaptor
+  src/fisheye_adaptor.cpp
+)
+target_link_libraries(${PROJECT_NAME}_mono_fisheye_adaptor
+  ${LIBS_ROS}
+)
+
 add_executable(${PROJECT_NAME}_stereo 
   src/stereo.cpp
   src/node.cpp
