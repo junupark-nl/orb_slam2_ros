@@ -25,6 +25,7 @@ node::~node() {
 void node::initialize() {
     initialize_ros_side();
     initialize_orb_slam2();
+    ROS_INFO("[ORB_SLAM2_ROS] Initialized.");
 }
 
 void node::initialize_ros_side() {
@@ -65,11 +66,10 @@ void node::initialize_ros_side() {
 void node::initialize_orb_slam2() {
     // initialize ORB-SLAM
     if (!load_orb_slam_parameters()){
-        ROS_ERROR("ORB_SLAM2 parameters are not loaded correctly.");
+        ROS_ERROR("[ORB_SLAM2_ROS] Parameters are not loaded correctly. Terminating node.");
         ros::shutdown();
         return;
     }
-    ROS_INFO("ORB_SLAM2 parameters are loaded.");
     orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_, load_map_);
     initialized_ = true;
 }
@@ -84,6 +84,7 @@ bool node::load_orb_slam_parameters() {
     std::string config_file_name;
     node_handle_.param<std::string>(node_name_+"/parameter_file", config_file_name, "");
     if (!config_file_name.empty() && load_orb_slam_parameters_from_file(config_file_name)) {
+        ROS_INFO("[ORB_SLAM2_ROS] Parameters are loaded from file.");
         return true;
     }
     // continue even if the parameter file is not given or parameters not correctly loaded from the file
@@ -92,14 +93,15 @@ bool node::load_orb_slam_parameters() {
 
 bool node::load_orb_slam_parameters_from_topic(){
     if (camera_info_topic_.empty()){
-        ROS_INFO("Camera info topic is not provided.");
+        ROS_INFO("[ORB_SLAM2_ROS] Camera info topic is not provided.");
         return false;
     }
-    ROS_INFO("Camera info topic: %s", camera_info_topic_.c_str());
+    ROS_INFO("[ORB_SLAM2_ROS] Camera info topic: %s", camera_info_topic_.c_str());
+
     sensor_msgs::CameraInfo::ConstPtr camera_info_msg = 
-        ros::topic::waitForMessage<sensor_msgs::CameraInfo>(camera_info_topic_, ros::Duration(1000));
+        ros::topic::waitForMessage<sensor_msgs::CameraInfo>(camera_info_topic_, ros::Duration(2000));
     if (camera_info_msg == nullptr){
-        ROS_ERROR("Camera info topic provided but message is not received.");
+        ROS_ERROR("[ORB_SLAM2_ROS] Camera info topic provided but message is not received.");
         return false;
     }
     
@@ -114,6 +116,7 @@ bool node::load_orb_slam_parameters_from_topic(){
     orb_slam_tracking_parameters_.p1 = camera_info_msg->D[2];
     orb_slam_tracking_parameters_.p2 = camera_info_msg->D[3];
     orb_slam_tracking_parameters_.k3 = camera_info_msg->D[4];
+    ROS_INFO("[ORB_SLAM2_ROS] Camera parameters are loaded from topic.");
     return true;
 }
 
@@ -121,7 +124,7 @@ bool node::load_orb_slam_parameters_from_file(const std::string &filename){
     cv::FileStorage config_file(filename, cv::FileStorage::READ);
 
     if(!config_file.isOpened()){
-        ROS_ERROR("Failed to open file %s", filename.c_str());
+        ROS_ERROR("[ORB_SLAM2_ROS] Failed to open parameter file %s", filename.c_str());
         return false;
     }
 
@@ -185,13 +188,18 @@ bool node::load_orb_slam_parameters_from_server(){
         loaded &= node_handle_.getParam(node_name_+"/ORBextractor/thDepth", orb_slam_tracking_parameters_.thDepth);
         loaded &= node_handle_.getParam(node_name_+"/ORBextractor/depthMapFactor", orb_slam_tracking_parameters_.depthMapFactor);
     }
+    if (loaded) {
+        ROS_INFO("[ORB_SLAM2_ROS] Parameters are loaded from server.");
+    } else {
+        ROS_ERROR("[ORB_SLAM2_ROS] Failed to load parameters from server.");
+    }
     return loaded;
 }
 
 bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res){
     res.success = orb_slam_->SaveMap(req.name);
     if (!res.success) {
-        ROS_ERROR("Map could not be saved.");
+        ROS_ERROR("[ORB_SLAM2_ROS] Map could not be saved.");
     }
     return res.success;
 }
@@ -199,15 +207,16 @@ bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros:
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
     if (dynamic_reconfigure_initial_setup_) {
         dynamic_reconfigure_initial_setup_ = false;
-    } else {
-        orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
+        return;
     }
+    orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
     save_on_exit_ = config.save_trajectory_on_exit;
     min_observations_per_point_ = config.min_observations_per_point;
-    ROS_INFO("ORB_SLAM2_ROS reconfiguration.\r\n\t-SLAM localization mode:\t%s\r\n\t-save trajectory on exit:\t%s\r\n\t-min observation points:\t%d", 
-        config.enable_localization_mode ? "True" : "False", 
-        config.save_trajectory_on_exit ? "True" : "False", 
-        config.min_observations_per_point);
+
+    ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
+    cout << "- SLAM localization mode:\t" << (config.enable_localization_mode ? "True" : "False") << endl;
+    cout << "- save trajectory on exit:\t" << (config.save_trajectory_on_exit ? "True" : "False") << endl; 
+    cout << " -min observation points:\t" << config.min_observations_per_point << endl;
 }
 
 void node::publish_topics() {
