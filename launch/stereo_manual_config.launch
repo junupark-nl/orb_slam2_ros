@@ -1,0 +1,68 @@
+<launch>
+    <!-- Define arguments with default values -->
+    <arg name="left_image_topic" default="/camera/left/image_raw" />
+    <arg name="right_image_topic" default="/camera/right/image_raw" />
+    <arg name="baseline" default="30.508997350490844" />
+    <arg name="fx" default="381.36246688113556" />
+    <arg name="fy" default="381.36246688113556" />
+    <arg name="cx" default="320.5" />
+    <arg name="cy" default="240.5" />
+    <arg name="k1" default="0.0" />
+    <arg name="k2" default="0.0" />
+    <arg name="p1" default="0.0" />
+    <arg name="p2" default="0.0" />
+    <arg name="k3" default="0.0" />
+    <arg name="fps" default="30" />
+    <arg name="rgb_encoding" default="true" />
+
+    <arg name="load_map" default="false" />
+    <arg name="map_file_name" default="$(find orb_slam2_ros)/resource/map.bin" />
+
+    <arg name="publish_map" default="true" />
+    <arg name="publish_rendered_image" default="true" />
+    <arg name="publish_pose" default="true" />
+    <arg name="publish_tf" default="false" />
+
+    <node name="orb_slam2_stereo" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo" output="screen">
+        <!-- Use the argument for remapping -->
+        <remap from="/camera/left/image_raw" to="$(arg left_image_topic)" />
+        <remap from="/camera/right/image_raw" to="$(arg right_image_topic)" />
+
+        <!-- static parameters -->
+        <param name="publish_map" type="bool" value="$(arg publish_map)" />
+        <param name="publish_rendered_image" type="bool" value="$(arg publish_rendered_image)" />
+        <param name="publish_pose" type="bool" value="$(arg publish_pose)" />
+        <param name="publish_tf" type="bool" value="$(arg publish_tf)" />
+
+        <param name="load_map" type="bool" value="$(arg load_map)" />
+        <param name="map_file_name" type="string" value="$(arg map_file_name)" />
+
+        <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
+
+        <!-- ORB parameters -->
+        <param name="ORBextractor/nFeatures" type="int" value="2000" />
+        <param name="ORBextractor/scaleFactor" type="double" value="1.2" />
+        <param name="ORBextractor/nLevels" type="int" value="8" />
+        <param name="ORBextractor/iniThFAST" type="int" value="20" />
+        <param name="ORBextractor/minThFAST" type="int" value="7" />
+        <param name="ORBextractor/thDepth" type="double" value="35.0" />
+        <param name="ORBextractor/depthMapFactor" type="double" value="1.0" />
+
+        <!-- Camera parameters -->
+        <!-- Camera calibration and distortion parameters (OpenCV) -->
+        <param name="Camera/fx" type="double" value="$(arg fx)" />
+        <param name="Camera/fy" type="double" value="$(arg fy)" />
+        <param name="Camera/cx" type="double" value="$(arg cx)" />
+        <param name="Camera/cy" type="double" value="$(arg cy)" />
+        <param name="Camera/k1" type="double" value="$(arg k1)" />
+        <param name="Camera/k2" type="double" value="$(arg k2)" />
+        <param name="Camera/p1" type="double" value="$(arg p1)" />
+        <param name="Camera/p2" type="double" value="$(arg p2)" />
+        <param name="Camera/k3" type="double" value="$(arg k3)" />
+        <param name="Camera/baseline" type="double" value="$(arg baseline)" />
+
+        <!-- Camera fps and rgb encoding(0: BGR, 1: RGB. It is ignored if images are grayscale) -->
+        <param name="Camera/fps" type="int" value="$(arg fps)" />
+        <param name="Camera/rgb_encoding" type="bool" value="$(arg rgb_encoding)" />
+    </node>
+</launch>

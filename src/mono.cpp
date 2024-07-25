@@ -13,6 +13,11 @@ mono::~mono() {
 }
 
 void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
+    if (!initialized_) {
+        ROS_WARN("Mono::callback_image: ORB-SLAM is not initialized yet.");
+        return;
+    }
+    
     // convert sensor_msgs::Image to cv::Mat
     cv_bridge::CvImageConstPtr cv_ptr;
     try {

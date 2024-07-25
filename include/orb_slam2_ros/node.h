@@ -16,6 +16,7 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 
 // messages
+#include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -46,12 +47,17 @@ class node {
         cv::Mat latest_Tcw_;
         ros::Time latest_image_time_;
         ORB_SLAM2::System *orb_slam_;
+        bool initialized_;
+
         void publish_topics();
 
     private:
         void initialize_ros_side();
         void initialize_orb_slam2();
-        void load_orb_slam_parameters();
+        bool load_orb_slam_parameters();
+        bool load_orb_slam_parameters_from_topic();
+        bool load_orb_slam_parameters_from_file(const std::string &filename);
+        bool load_orb_slam_parameters_from_server();
 
         void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
         void publish_rendered_image(cv::Mat image);
@@ -97,6 +103,8 @@ class node {
         ORB_SLAM2::TrackingParameters orb_slam_tracking_parameters_;
         std::string map_file_name_;
         bool load_map_;
+        std::string camera_info_topic_;
+        bool camera_info_received_;
 
         // slam-derived
         tf2::Transform latest_tf_;

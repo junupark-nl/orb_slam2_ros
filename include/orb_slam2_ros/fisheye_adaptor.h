@@ -21,17 +21,26 @@ class FisheyeUndistorter {
 
     private:
         void callback_image(const sensor_msgs::ImageConstPtr &msg);
-        void load_fisheye_camera_parameters();
+        void callback_timer(const ros::TimerEvent&);
+        bool load_fisheye_camera_parameters();
+        bool load_fisheye_camera_parameters_from_file(const std::string &filename);
+        bool load_fisheye_camera_parameters_from_server();
+        void initialize_rectification();
 
         ros::NodeHandle node_handle_;
         image_transport::ImageTransport image_transport_;
         image_transport::Subscriber image_subscriber_;
         image_transport::Publisher image_publisher_;
+        ros::Timer timer_;
+        ros::Publisher camera_info_publisher_;
         std::string node_name_;
 
         cv::Mat K_;
         cv::Mat D_;
-        cv::Size image_size_;
+        cv::Mat K_undistorted_;
+        cv::Size image_size_raw_;
+        cv::Size image_size_undistorted_;
+        bool initialized_;
 };
 
 }

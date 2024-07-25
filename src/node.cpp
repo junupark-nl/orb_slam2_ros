@@ -3,7 +3,7 @@
 namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
-    : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type) {
+    : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), initialized_(false), camera_info_received_(false) {
     node_name_ = ros::this_node::getName();
     // default values of dynamically reconfigured parameters
     save_on_exit_ = false;
@@ -57,45 +57,135 @@ void node::initialize_ros_side() {
 
     // service server for saving map
     save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
+
+    // camera info subscriber
+    node_handle_.param<std::string>(node_name_+"/camera_info_topic", camera_info_topic_, "");
 }
 
 void node::initialize_orb_slam2() {
     // initialize ORB-SLAM
-    load_orb_slam_parameters();
+    if (!load_orb_slam_parameters()){
+        ROS_ERROR("ORB_SLAM2 parameters are not loaded correctly.");
+        ros::shutdown();
+        return;
+    }
+    ROS_INFO("ORB_SLAM2 parameters are loaded.");
     orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_, load_map_);
+    initialized_ = true;
 }
 
-void node::load_orb_slam_parameters() {
+bool node::load_orb_slam_parameters() {
     // load SLAM initialization parameters
     // vocabulary file name
     node_handle_.param(node_name_+"/vocabulary_file_name", vocabulary_file_name_, std::string("you can't run if you don't have one"));
 
+    load_orb_slam_parameters_from_topic();
+    // check if parameter file is given
+    std::string config_file_name;
+    node_handle_.param<std::string>(node_name_+"/parameter_file", config_file_name, "");
+    if (!config_file_name.empty() && load_orb_slam_parameters_from_file(config_file_name)) {
+        return true;
+    }
+    // continue even if the parameter file is not given or parameters not correctly loaded from the file
+    return load_orb_slam_parameters_from_server();
+}
+
+bool node::load_orb_slam_parameters_from_topic(){
+    if (camera_info_topic_.empty()){
+        ROS_INFO("Camera info topic is not provided.");
+        return false;
+    }
+    ROS_INFO("Camera info topic: %s", camera_info_topic_.c_str());
+    sensor_msgs::CameraInfo::ConstPtr camera_info_msg = 
+        ros::topic::waitForMessage<sensor_msgs::CameraInfo>(camera_info_topic_, ros::Duration(1000));
+    if (camera_info_msg == nullptr){
+        ROS_ERROR("Camera info topic provided but message is not received.");
+        return false;
+    }
+    
+    camera_info_received_ = true;
+    orb_slam_tracking_parameters_.fx = camera_info_msg->K[0];
+    orb_slam_tracking_parameters_.fy = camera_info_msg->K[4];
+    orb_slam_tracking_parameters_.cx = camera_info_msg->K[2];
+    orb_slam_tracking_parameters_.cy = camera_info_msg->K[5];
+
+    orb_slam_tracking_parameters_.k1 = camera_info_msg->D[0];
+    orb_slam_tracking_parameters_.k2 = camera_info_msg->D[1];
+    orb_slam_tracking_parameters_.p1 = camera_info_msg->D[2];
+    orb_slam_tracking_parameters_.p2 = camera_info_msg->D[3];
+    orb_slam_tracking_parameters_.k3 = camera_info_msg->D[4];
+    return true;
+}
+
+bool node::load_orb_slam_parameters_from_file(const std::string &filename){
+    cv::FileStorage config_file(filename, cv::FileStorage::READ);
+
+    if(!config_file.isOpened()){
+        ROS_ERROR("Failed to open file %s", filename.c_str());
+        return false;
+    }
+
+    if(!camera_info_received_) {
+        config_file["Camera.fx"] >> orb_slam_tracking_parameters_.fx;
+        config_file["Camera.fy"] >> orb_slam_tracking_parameters_.fy;
+        config_file["Camera.cx"] >> orb_slam_tracking_parameters_.cx;
+        config_file["Camera.cy"] >> orb_slam_tracking_parameters_.cy;
+        config_file["Camera.k1"] >> orb_slam_tracking_parameters_.k1;
+        config_file["Camera.k2"] >> orb_slam_tracking_parameters_.k2;
+        config_file["Camera.p1"] >> orb_slam_tracking_parameters_.p1;
+        config_file["Camera.p2"] >> orb_slam_tracking_parameters_.p2;
+        config_file["Camera.k3"] >> orb_slam_tracking_parameters_.k3;
+    }
+    config_file["Camera.fps"] >> orb_slam_tracking_parameters_.fps;
+    config_file["Camera.RGB"] >> orb_slam_tracking_parameters_.isRGB;
+
+    config_file["ORBextractor.nFeatures"] >> orb_slam_tracking_parameters_.nFeatures;
+    config_file["ORBextractor.scaleFactor"] >> orb_slam_tracking_parameters_.scaleFactor;
+    config_file["ORBextractor.nLevels"] >> orb_slam_tracking_parameters_.nLevels;
+    config_file["ORBextractor.iniThFAST"] >> orb_slam_tracking_parameters_.iniThFAST;
+    config_file["ORBextractor.minThFAST"] >> orb_slam_tracking_parameters_.minThFAST;
+
+    if (sensor_type_ == ORB_SLAM2::System::STEREO || sensor_type_ == ORB_SLAM2::System::RGBD) {
+        config_file["ThDepth"] >> orb_slam_tracking_parameters_.thDepth;
+        config_file["depthMapFactor"] >> orb_slam_tracking_parameters_.depthMapFactor;
+        config_file["Camera.bf"] >> orb_slam_tracking_parameters_.baseline;
+    }
+
+    config_file.release();
+    return true;
+}
+
+bool node::load_orb_slam_parameters_from_server(){
+    bool loaded = true;
     // ORB parameters
-    node_handle_.param(node_name_+"/ORB/nFeatures", orb_slam_tracking_parameters_.nFeatures, 1200);
-    node_handle_.param(node_name_+"/ORB/scaleFactor", orb_slam_tracking_parameters_.scaleFactor, 1.2F);
-    node_handle_.param(node_name_+"/ORB/nLevels", orb_slam_tracking_parameters_.nLevels, 8);
-    node_handle_.param(node_name_+"/ORB/iniThFAST", orb_slam_tracking_parameters_.iniThFAST, 20);
-    node_handle_.param(node_name_+"/ORB/minThFAST", orb_slam_tracking_parameters_.minThFAST, 7);
+    loaded &= node_handle_.getParam(node_name_+"/ORBextractor/nFeatures", orb_slam_tracking_parameters_.nFeatures);
+    loaded &= node_handle_.getParam(node_name_+"/ORBextractor/scaleFactor", orb_slam_tracking_parameters_.scaleFactor);
+    loaded &= node_handle_.getParam(node_name_+"/ORBextractor/nLevels", orb_slam_tracking_parameters_.nLevels);
+    loaded &= node_handle_.getParam(node_name_+"/ORBextractor/iniThFAST", orb_slam_tracking_parameters_.iniThFAST);
+    loaded &= node_handle_.getParam(node_name_+"/ORBextractor/minThFAST", orb_slam_tracking_parameters_.minThFAST);
 
     // camera parameters
-    node_handle_.param(node_name_+"/camera/fx", orb_slam_tracking_parameters_.fx, 381.36246688113556F);
-    node_handle_.param(node_name_+"/camera/fy", orb_slam_tracking_parameters_.fy, 381.36246688113556F);
-    node_handle_.param(node_name_+"/camera/cx", orb_slam_tracking_parameters_.cx, 320.5F);
-    node_handle_.param(node_name_+"/camera/cy", orb_slam_tracking_parameters_.cy, 240.5F);
-    node_handle_.param(node_name_+"/camera/k1", orb_slam_tracking_parameters_.k1, 0.2624F);
-    node_handle_.param(node_name_+"/camera/k2", orb_slam_tracking_parameters_.k2, -0.9531F);
-    node_handle_.param(node_name_+"/camera/p1", orb_slam_tracking_parameters_.p1, -0.0054F);
-    node_handle_.param(node_name_+"/camera/p2", orb_slam_tracking_parameters_.p2, 0.0026F);
-    node_handle_.param(node_name_+"/camera/k3", orb_slam_tracking_parameters_.k3, 1.1633F);
-    node_handle_.param(node_name_+"/camera/fps", orb_slam_tracking_parameters_.fps, 30);
-    node_handle_.param(node_name_+"/camera/rgb_encoding", orb_slam_tracking_parameters_.isRGB, true);
+    if (!camera_info_received_) {
+        loaded &= node_handle_.getParam(node_name_+"/Camera/fx", orb_slam_tracking_parameters_.fx);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/fy", orb_slam_tracking_parameters_.fy);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/cx", orb_slam_tracking_parameters_.cx);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/cy", orb_slam_tracking_parameters_.cy);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/k1", orb_slam_tracking_parameters_.k1);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/k2", orb_slam_tracking_parameters_.k2);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/p1", orb_slam_tracking_parameters_.p1);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/p2", orb_slam_tracking_parameters_.p2);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/k3", orb_slam_tracking_parameters_.k3);
+    }
+    loaded &= node_handle_.getParam(node_name_+"/Camera/fps", orb_slam_tracking_parameters_.fps);
+    loaded &= node_handle_.getParam(node_name_+"/Camera/rgb_encoding", orb_slam_tracking_parameters_.isRGB);
 
     // depth-involved
     if (sensor_type_ == ORB_SLAM2::System::STEREO || sensor_type_ == ORB_SLAM2::System::RGBD) {
-        node_handle_.param(node_name_+"/camera/baseline", orb_slam_tracking_parameters_.baseline, 0.12F);
-        node_handle_.param(node_name_+"/ORB/thDepth", orb_slam_tracking_parameters_.thDepth, 35.0F);
-        node_handle_.param(node_name_+"/ORB/depthMapFactor", orb_slam_tracking_parameters_.depthMapFactor, 1.0F);
+        loaded &= node_handle_.getParam(node_name_+"/Camera/baseline", orb_slam_tracking_parameters_.baseline);
+        loaded &= node_handle_.getParam(node_name_+"/ORBextractor/thDepth", orb_slam_tracking_parameters_.thDepth);
+        loaded &= node_handle_.getParam(node_name_+"/ORBextractor/depthMapFactor", orb_slam_tracking_parameters_.depthMapFactor);
     }
+    return loaded;
 }
 
 bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res){
