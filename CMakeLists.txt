@@ -210,6 +210,9 @@ target_link_libraries(${PROJECT_NAME}_mono
 add_executable(${PROJECT_NAME}_mono_fisheye_adaptor
   src/fisheye_adaptor.cpp
 )
+add_dependencies(${PROJECT_NAME}_mono_fisheye_adaptor 
+  ${ORB_SLAM_CORE}
+)
 target_link_libraries(${PROJECT_NAME}_mono_fisheye_adaptor
   ${LIBS_ROS}
 )
