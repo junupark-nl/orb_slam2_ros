@@ -20,10 +20,10 @@ FisheyeUndistorter::FisheyeUndistorter(ros::NodeHandle &node_handle, image_trans
     print_loaded_parameters();
 
     image_subscriber_ = image_transport_.subscribe("/fisheye/image_raw", 1, &FisheyeUndistorter::callback_image, this);
-    image_publisher_ = image_transport_.advertise("/fisheye/image_undistorted", 1);
+    image_publisher_ = image_transport_.advertise(node_name_+"/image_undistorted", 1);
 
-    camera_info_publisher_ = node_handle_.advertise<sensor_msgs::CameraInfo>("/fisheye/rectified_camera_info", 1);
-    timer_ = node_handle_.createTimer(ros::Duration(0.25), &FisheyeUndistorter::callback_timer, this);
+    camera_info_publisher_ = node_handle_.advertise<sensor_msgs::CameraInfo>(node_name_+"/rectified_camera_info", 1);
+    timer_ = node_handle_.createTimer(ros::Duration(0.5), &FisheyeUndistorter::callback_timer, this);
 }
 
 FisheyeUndistorter::~FisheyeUndistorter() {}
@@ -82,12 +82,13 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters() {
         return true;
     }
     // continue even if calibration file is not given or not correctly loaded from the file
+    ROS_INFO("[Fisheye] No calibration file is given. Try loading from server.");
     return load_fisheye_camera_parameters_from_server();
 }
 
 bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::string &filename) {
     
-    ROS_INFO("[Fisheye] calibration file name: %s", filename.c_str());
+    ROS_INFO("[Fisheye] Calibration file name: %s", filename.c_str());
     cv::FileStorage calibration_file(filename, cv::FileStorage::READ);
     if(!calibration_file.isOpened()){
         ROS_ERROR("[Fisheye] Failed to open file %s", filename.c_str());

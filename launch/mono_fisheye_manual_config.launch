@@ -1,6 +1,9 @@
 <launch>
     <!-- Define arguments with default values -->
-    <arg name="image_topic" default="/camera/image_raw" />
+    <arg name="image_topic" default="/fisheye/image_raw" />
+    <arg name="pose_topic" default="/orb_slam2_mono/pose" />
+    <arg name="map_topic" default="/orb_slam2_mono/map" />
+    <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
     <arg name="fisheye_fx" default="381.36246688113556" />
     <arg name="fisheye_fy" default="381.36246688113556" />
     <arg name="fisheye_cx" default="320.5" />
@@ -31,7 +34,9 @@
     <arg name="publish_tf" default="false" />
 
     <node name="fisheye_adaptor" pkg="orb_slam2_ros" type="orb_slam2_ros_mono_fisheye_adaptor" output="screen">
+        <!-- topic remapping -->
         <remap from="/fisheye/image_raw" to="$(arg image_topic)" />
+
         <param name="fx" type="double" value="$(arg fx)" />
         <param name="fy" type="double" value="$(arg fy)" />
         <param name="cx" type="double" value="$(arg cx)" />
@@ -42,8 +47,11 @@
         <param name="k4" type="double" value="$(arg fisheye_k4)" />
     </node>
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
-        <!-- Use the argument for remapping -->
-        <remap from="/camera/image_raw" to="/fisheye/image_undistorted" />
+        <!-- topic remapping -->
+        <remap from="/camera/image_raw" to="/fisheye_adaptor/image_undistorted" />
+        <remap from="/orb_slam2_mono/pose" to="$(arg pose_topic)" />
+        <remap from="/orb_slam2_mono/map" to="$(arg map_topic)" />
+        <remap from="/orb_slam2_mono/rendered_image" to="$(arg rendered_image_topic)" />
 
         <!-- static parameters -->
         <param name="publish_map" type="bool" value="$(arg publish_map)" />

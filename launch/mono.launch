@@ -1,8 +1,10 @@
 <launch>
     <!-- Define arguments with default values -->
     <arg name="image_topic" default="/camera/image_raw" />
-    <arg name="camera_info_topic" default="/camera/camera_info" />
-    <arg name="parameter_file" default="$(find orb_slam2_ros)/config/mono.yaml" />
+    <arg name="pose_topic" default="/orb_slam2_mono/pose" />
+    <arg name="map_topic" default="/orb_slam2_mono/map" />
+    <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
+    <arg name="orb_slam2_parameter_file" default="$(find orb_slam2_ros)/config/mono_default.yaml" />
 
     <arg name="load_map" default="false" />
     <arg name="map_file_name" default="$(find orb_slam2_ros)/resource/map.bin" />
@@ -13,9 +15,11 @@
     <arg name="publish_tf" default="false" />
 
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
-        <!-- Use the argument for remapping -->
+        <!-- topic remapping -->
         <remap from="/camera/image_raw" to="$(arg image_topic)" />
-        <remap from="/camera/camera_info" to="$(arg camera_info_topic)" />
+        <remap from="/orb_slam2_mono/pose" to="$(arg pose_topic)" />
+        <remap from="/orb_slam2_mono/map" to="$(arg map_topic)" />
+        <remap from="/orb_slam2_mono/rendered_image" to="$(arg rendered_image_topic)" />
 
         <!-- static parameters -->
         <param name="publish_map" type="bool" value="$(arg publish_map)" />
@@ -27,6 +31,6 @@
         <param name="map_file_name" type="string" value="$(arg map_file_name)" />
 
         <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
-        <param name="parameter_file" type="string" value="$(arg parameter_file)" />
+        <param name="parameter_file" type="string" value="$(arg orb_slam2_parameter_file)" />
     </node>
 </launch>
