@@ -4,7 +4,7 @@
     <arg name="pose_topic" default="/orb_slam2_mono/pose" />
     <arg name="map_topic" default="/orb_slam2_mono/map" />
     <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
-    <arg name="orb_slam2_parameter_file" default="$(find orb_slam2_ros)/config/mono_default.yaml" />
+    <arg name="orb_slam2_parameter_file" default="mono_default.yaml" />
 
     <arg name="load_map" default="false" />
     <arg name="map_file_name" default="map.bin" />
@@ -31,6 +31,6 @@
         <param name="map_file_name" type="string" value="$(find orb_slam2_ros)/resource/$(arg map_file_name)" />
 
         <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
-        <param name="parameter_file" type="string" value="$(arg orb_slam2_parameter_file)" />
+        <param name="parameter_file" type="string" value="$(find orb_slam2_ros)/config/$(arg orb_slam2_parameter_file)" />
     </node>
 </launch>

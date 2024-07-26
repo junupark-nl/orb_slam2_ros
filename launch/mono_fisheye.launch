@@ -4,8 +4,8 @@
     <arg name="pose_topic" default="/orb_slam2_mono/pose" />
     <arg name="map_topic" default="/orb_slam2_mono/map" />
     <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
-    <arg name="orb_slam2_parameter_file" default="$(find orb_slam2_ros)/config/slam_base.yaml" /> <!-- fisheye_adaptor will provide camera intrinsic as a topic -->
-    <arg name="fisheye_calibration_file" default="$(find orb_slam2_ros)/config/fisheye_starling2_front.yaml" />
+    <arg name="orb_slam2_parameter_file" default="slam_base.yaml" /> <!-- fisheye_adaptor will provide camera intrinsic as a topic -->
+    <arg name="fisheye_calibration_file" default="fisheye_starling2_front.yaml" />
 
     <arg name="load_map" default="false" />
     <arg name="map_file_name" default="map.bin" />
@@ -20,7 +20,7 @@
         <remap from="/fisheye/image_raw" to="$(arg image_topic)" />
 
         <!-- static parameters -->
-        <param name="calibration_file" type="string" value="$(arg fisheye_calibration_file)" />
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
     </node>
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
         <!-- topic remapping -->
@@ -39,7 +39,7 @@
         <param name="map_file_name" type="string" value="$(find orb_slam2_ros)/resource/$(arg map_file_name)" />
 
         <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
-        <param name="parameter_file" type="string" value="$(arg orb_slam2_parameter_file)" />
+        <param name="parameter_file" type="string" value="$(find orb_slam2_ros)/config/$(arg orb_slam2_parameter_file)" />
         <param name="camera_info_topic" type="string" value="/fisheye_adaptor/rectified_camera_info" />
     </node>
 </launch>
