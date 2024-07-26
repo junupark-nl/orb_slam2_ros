@@ -1,4 +1,5 @@
 #include "orb_slam2_ros/node.h"
+#include <ros/package.h> // to get the package path
 
 namespace orb_slam2_ros {
 
@@ -197,7 +198,8 @@ bool node::load_orb_slam_parameters_from_server(){
 }
 
 bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res){
-    res.success = orb_slam_->SaveMap(req.name);
+    std::string map_file_name = ros::package::getPath("orb_slam2_ros") + "/resource/" + req.name;
+    res.success = orb_slam_->SaveMap(map_file_name);
     if (!res.success) {
         ROS_ERROR("[ORB_SLAM2_ROS] Map could not be saved.");
     }

@@ -19,7 +19,7 @@
     <arg name="rgb_encoding" default="true" />
 
     <arg name="load_map" default="false" />
-    <arg name="map_file_name" default="$(find orb_slam2_ros)/resource/map.bin" />
+    <arg name="map_file_name" default="map.bin" />
 
     <arg name="publish_map" default="true" />
     <arg name="publish_rendered_image" default="true" />
@@ -41,7 +41,7 @@
         <param name="publish_tf" type="bool" value="$(arg publish_tf)" />
 
         <param name="load_map" type="bool" value="$(arg load_map)" />
-        <param name="map_file_name" type="string" value="$(arg map_file_name)" />
+        <param name="map_file_name" type="string" value="$(find orb_slam2_ros)/resource/$(arg map_file_name)" />
 
         <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
 
