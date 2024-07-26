@@ -22,17 +22,25 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
 )
 
-## System dependencies are found with CMake's conventions
-find_package(OpenCV 4.0 QUIET)
-if(NOT OpenCV_FOUND)
-   find_package(OpenCV 3.0 QUIET)
-   if(NOT OpenCV_FOUND)
-      find_package(OpenCV 2.4.3 QUIET)
-      if(NOT OpenCV_FOUND)
-         message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
-     endif()
-   endif()
+# Add the OpenCV Dependency
+message( STATUS "processor: " ${CMAKE_SYSTEM_PROCESSOR} )
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+  ## System dependencies are found with CMake's conventions
+  find_package(OpenCV 4.0 QUIET)
+  if(NOT OpenCV_FOUND)
+    find_package(OpenCV 3.0 QUIET)
+    if(NOT OpenCV_FOUND)
+        find_package(OpenCV 2.4.3 QUIET)
+        if(NOT OpenCV_FOUND)
+          message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
+      endif()
+    endif()
+  endif()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")	
+	file(GLOB OpenCV_LIBS "/usr/lib64/libopencv*.so")
+	set(PCL_DIR /usr/lib/aarch64-linux-gnu/cmake/pcl)
 endif()
+
 
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS serialization)     
@@ -141,6 +149,8 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+	${OpenCV_INCLUDE_DIRS}
+	/usr/include/opencv4/
 )
 
 include(${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/CMakeLists.txt)
@@ -171,6 +181,8 @@ add_dependencies(${ORB_SLAM_CORE} g2o DBoW2)
 
 set(LIBS_ORBSLAM
   ${OpenCV_LIBS}
+  -L/usr/lib64/
+  /usr/local/lib/
   ${Eigen3_LIBS}
   ${Boost_LIBRARIES} # added for the serialization library
   ${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/lib/libDBoW2.so # this was built by including DBow2 CMakeLists.txt
@@ -180,6 +192,8 @@ set(LIBS_ORBSLAM
 set(LIBS_ROS
   ${PROJECT_SOURCE_DIR}/orb_slam2_core/lib/lib${ORB_SLAM_CORE}.so # this was built by add_library(${ORB_SLAM_CORE} SHARED ...)
   ${OpenCV_LIBS}
+  -L/usr/lib64/
+  /usr/local/lib/
   ${catkin_LIBRARIES}
 )
 message(STATUS "LIBS_ROS: ${LIBS_ROS}, LIBS_ORBSLAM: ${LIBS_ORBSLAM}") # simply to check the values
