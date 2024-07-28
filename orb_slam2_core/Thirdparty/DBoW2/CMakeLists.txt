@@ -22,14 +22,5 @@ set(SRCS_DUTILS
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${dbow2_SOURCE_DIR}/lib)
 
-# Add the OpenCV Dependency
-message( STATUS "processor: " ${CMAKE_SYSTEM_PROCESSOR} )
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")
-	file(GLOB OpenCV_LIBS "/usr/lib64/libopencv*.so")
-endif()
-
 add_library(DBoW2 SHARED ${SRCS_DBOW2} ${SRCS_DUTILS})
-target_link_libraries(DBoW2 ${OpenCV_LIBS} -L/usr/lib64/)
-
-
-
+target_link_libraries(DBoW2 ${OpenCV_LIBS})
