@@ -4,7 +4,10 @@ namespace orb_slam2_ros {
 
 stereo::stereo(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node(node_handle, image_transport, sensor_type) {
-    // initialize Stereo ORB-SLAM
+    // Initialize Node first
+    initialize_node();
+
+    // Initiazte tracking callback of Stereo ORB-SLAM2
     left_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/left/image_raw", 1);
     right_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/right/image_raw", 1);
 
@@ -13,6 +16,7 @@ stereo::stereo(ros::NodeHandle &node_handle, image_transport::ImageTransport &im
 }
 
 stereo::~stereo() {
+    ROS_INFO("[Stereo] Terminating Stereo.");
     delete left_image_subscriber_;
     delete right_image_subscriber_;
     delete synchronizer_;
@@ -53,7 +57,6 @@ int main(int argc, char **argv)
     image_transport::ImageTransport image_transport(node_handle);
 
     orb_slam2_ros::stereo slam_node(node_handle, image_transport, ORB_SLAM2::System::STEREO);
-    slam_node.initialize();
 
     ros::spin();
     return 0;

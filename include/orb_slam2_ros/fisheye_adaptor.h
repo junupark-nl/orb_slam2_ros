@@ -18,6 +18,7 @@ class FisheyeUndistorter {
     public:
         FisheyeUndistorter(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport);
         ~FisheyeUndistorter();
+        void initialize();
 
     private:
         void callback_image(const sensor_msgs::ImageConstPtr &msg);

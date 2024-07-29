@@ -16,6 +16,7 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 }
 
 node::~node() {
+    ROS_INFO("[ORB_SLAM2_ROS] Terminating ORB-SLAM2 node.");
     orb_slam_->Shutdown();
     if(save_on_exit_){
         orb_slam_->SaveTrajectoryTUM("trajectory.txt");
@@ -23,10 +24,10 @@ node::~node() {
     delete orb_slam_;
 }
 
-void node::initialize() {
+void node::initialize_node() {
     initialize_ros_side();
     initialize_orb_slam2();
-    ROS_INFO("[ORB_SLAM2_ROS] Initialized.");
+    ROS_INFO("[ORB_SLAM2_ROS] Node initialized.");
 }
 
 void node::initialize_ros_side() {
@@ -72,6 +73,8 @@ void node::initialize_orb_slam2() {
         return;
     }
     orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_, load_map_);
+    // Turn localization mode on by default
+    orb_slam_->TurnLocalizationMode(true);
     initialized_ = true;
 }
 

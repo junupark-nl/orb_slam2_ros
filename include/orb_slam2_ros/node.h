@@ -40,7 +40,6 @@ class node {
     public:
         node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
         ~node();
-        void initialize();
     
     protected:
         // slam-derived
@@ -49,6 +48,7 @@ class node {
         ORB_SLAM2::System *orb_slam_;
         bool initialized_;
 
+        void initialize_node();
         void publish_topics();
 
     private:

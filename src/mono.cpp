@@ -4,12 +4,15 @@ namespace orb_slam2_ros {
 
 mono::mono(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node(node_handle, image_transport, sensor_type) {
-    // initialize Monocular ORB-SLAM
+    // Initialize Node first
+    initialize_node();
+
+    // Initiazte tracking callback of Monocular ORB-SLAM2
     image_subscriber_ = image_transport.subscribe("/camera/image_raw", 1, &mono::callback_image, this);
 }
 
 mono::~mono() {
-
+    ROS_INFO("[Mono] Terminating Mono.");
 }
 
 void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
@@ -46,7 +49,6 @@ int main(int argc, char **argv)
     image_transport::ImageTransport image_transport(node_handle);
 
     orb_slam2_ros::mono slam_node(node_handle, image_transport, ORB_SLAM2::System::MONOCULAR);
-    slam_node.initialize();
 
     ros::spin();
     return 0;

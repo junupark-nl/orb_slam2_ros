@@ -18,22 +18,27 @@ FisheyeUndistorter::FisheyeUndistorter(ros::NodeHandle &node_handle, image_trans
     }
     ROS_INFO("[Fisheye] Fisheye camera parameters are loaded.");
     print_loaded_parameters();
-
-    image_subscriber_ = image_transport_.subscribe("/fisheye/image_raw", 1, &FisheyeUndistorter::callback_image, this);
-    image_publisher_ = image_transport_.advertise(node_name_+"/image_undistorted", 1);
-
-    camera_info_publisher_ = node_handle_.advertise<sensor_msgs::CameraInfo>(node_name_+"/rectified_camera_info", 1);
-    timer_ = node_handle_.createTimer(ros::Duration(0.5), &FisheyeUndistorter::callback_timer, this);
 }
 
-FisheyeUndistorter::~FisheyeUndistorter() {}
+FisheyeUndistorter::~FisheyeUndistorter() {
+    ROS_INFO("[Fisheye] Terminating FisheyeUndistorter.");
+}
+
+void FisheyeUndistorter::initialize() {
+    image_publisher_ = image_transport_.advertise(node_name_+"/image_undistorted", 1);
+    camera_info_publisher_ = node_handle_.advertise<sensor_msgs::CameraInfo>(node_name_+"/rectified_camera_info", 1);
+
+    timer_ = node_handle_.createTimer(ros::Duration(0.5), &FisheyeUndistorter::callback_timer, this);
+    image_subscriber_ = image_transport_.subscribe("/fisheye/image_raw", 1, &FisheyeUndistorter::callback_image, this);
+}
 
 void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // convert sensor_msgs::Image to cv::Mat
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
-        // encoding? 
-        // cv_ptr = cv_bridge::toCvCopy(msg); sensor_msgs::image_encodings::MONO8 
+        // encoding 
+        // cv_ptr = cv_bridge::toCvCopy(msg); // follow the encoding of the input image
+        // cv_prt = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8); // convert to MONO8
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8); 
     }
     catch (cv_bridge::Exception& e) {
@@ -48,6 +53,7 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // undistort the image
     cv::Mat image_undistorted;
     cv::remap(cv_ptr->image, image_undistorted, undistortion_map1_, undistortion_map2_, cv::INTER_CUBIC, cv::BORDER_CONSTANT);
+    // cv::fisheye::undistortImage internally utilizes cv::initUndistortRectifyMap & cv::remap
     // cv::fisheye::undistortImage(cv_ptr->image, image_undistorted, K_, D_, K_undistorted_, image_size_undistorted_);
 
     // publish sensor_msgs::Image converted from cv::Mat(=image_undistorted)
@@ -57,8 +63,8 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
 
 void FisheyeUndistorter::initialize_undistortion_map(const cv::Size& image_size) {
     // Estimate new camera matrix K_undistorted_
-    // this is aborted since balance=0 does not guarantee maximum enclosed rectangle
     /* 
+    // this is aborted since balance=0 does not guarantee maximum enclosed rectangle
     double balance = 0.0; // minimum FOV, maximum cropping
     cv::fisheye::estimateNewCameraMatrixForUndistortRectify(K_, D_, image_size, cv::Matx33f::eye(), k_undistorted_, balance);
     */
@@ -81,13 +87,13 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters() {
     if (!calibration_file_name.empty() && load_fisheye_camera_parameters_from_file(calibration_file_name)) {
         return true;
     }
+
     // continue even if calibration file is not given or not correctly loaded from the file
-    ROS_INFO("[Fisheye] No calibration file is given. Try loading from server.");
+    ROS_INFO("[Fisheye] No calibration file is loaded. Try loading from the server.");
     return load_fisheye_camera_parameters_from_server();
 }
 
 bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::string &filename) {
-    
     ROS_INFO("[Fisheye] Calibration file name: %s", filename.c_str());
     cv::FileStorage calibration_file(filename, cv::FileStorage::READ);
     if(!calibration_file.isOpened()){
@@ -117,9 +123,7 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::str
 }
 
 bool FisheyeUndistorter::load_fisheye_camera_parameters_from_server() {
-
     bool loaded = true;
-    // load camera parameters
     float fx, fy, cx, cy;
     float k1, k2, k3, k4;
 
@@ -191,6 +195,7 @@ int main(int argc, char **argv) {
     image_transport::ImageTransport image_transport(node_handle);
 
     orb_slam2_ros::FisheyeUndistorter fisheye_undistorter(node_handle, image_transport);
+    fisheye_undistorter.initialize();
 
     ros::spin();
     return 0;

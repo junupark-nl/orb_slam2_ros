@@ -46,7 +46,6 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys),
     mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0)
 {
-    // TODO: I think I can resue these blocks as a function
     cv::Mat K = cv::Mat::eye(3,3,CV_32F);
     K.at<float>(0,0) = parameter.fx;
     K.at<float>(1,1) = parameter.fy;

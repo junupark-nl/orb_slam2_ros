@@ -130,6 +130,12 @@ private:
     // Load a map from a file
     bool LoadMap(const string &filename);
 
+    // Map consistency check
+    bool CheckMapConsistency();
+    // Stack size helpers
+    bool SetCallStackSize(const rlim_t kNewStackSize);
+    rlim_t GetCurrentCallStackSize ();
+
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
     // This resumes local mapping thread and performs SLAM again.

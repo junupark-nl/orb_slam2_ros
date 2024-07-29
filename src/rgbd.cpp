@@ -4,7 +4,10 @@ namespace orb_slam2_ros {
 
 rgbd::rgbd(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node(node_handle, image_transport, sensor_type) {
-    // initialize RGBD ORB-SLAM
+    // Initialize Node first
+    initialize_node();
+
+    // Initiazte tracking callback of RGBD ORB-SLAM2
     rgb_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/rgb/image_raw", 1);
     depth_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/depth_registered/image_raw", 1);
 
@@ -13,6 +16,7 @@ rgbd::rgbd(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 }
 
 rgbd::~rgbd() {
+    ROS_INFO("[RGBD] Terminating RGBD.");
     delete rgb_image_subscriber_;
     delete depth_image_subscriber_;
     delete synchronizer_;
@@ -51,9 +55,8 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node_handle;
     image_transport::ImageTransport image_transport(node_handle);
+    
     orb_slam2_ros::rgbd slam_node(node_handle, image_transport, ORB_SLAM2::System::RGBD);
-
-    slam_node.initialize();
 
     ros::spin();
     return 0;
