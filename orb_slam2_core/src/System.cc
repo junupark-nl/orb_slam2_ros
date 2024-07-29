@@ -74,7 +74,7 @@ System::System(const string &strVocFile, const eSensor sensor, const TrackingPar
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
     mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer,
-                             mpMap, mpKeyFrameDatabase, mSensor, parameter);
+                             mpMap, mpKeyFrameDatabase, mSensor, parameter, mbLoadMap);
 
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
@@ -526,6 +526,7 @@ rlim_t System::GetCurrentCallStackSize () {
 
 bool System::CheckMapConsistency() {
     if (mpMap->GetAllKeyFrames().empty()) {
+        std::cerr << "Map has no keyframes" << std::endl;
         return false;
     }
     
@@ -535,6 +536,7 @@ bool System::CheckMapConsistency() {
             return false;
         }
     }
+    return true;
 }
 
 bool System::SaveMap(const string &filename) {

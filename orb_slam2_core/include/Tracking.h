@@ -54,7 +54,7 @@ class Tracking
 
 public:
     Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, Map* pMap,
-             KeyFrameDatabase* pKFDB, const int sensor, const TrackingParameters& parameter);
+             KeyFrameDatabase* pKFDB, const int sensor, const TrackingParameters& parameter, const bool bReuseMap);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);
