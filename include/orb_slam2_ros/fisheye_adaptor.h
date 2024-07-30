@@ -39,10 +39,12 @@ class FisheyeUndistorter {
 
         cv::Mat K_;
         cv::Mat D_;
-        cv::Size image_size_;
         bool initialized_;
 
+        double resize_factor_;
+        cv::Mat K_undistorted_;
         cv::Mat undistortion_map1_, undistortion_map2_;
+        cv::Size image_size_undistorted_;
 };
 
 }

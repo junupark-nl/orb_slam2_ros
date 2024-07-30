@@ -53,8 +53,6 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // undistort the image
     cv::Mat image_undistorted;
     cv::remap(cv_ptr->image, image_undistorted, undistortion_map1_, undistortion_map2_, cv::INTER_CUBIC, cv::BORDER_CONSTANT);
-    // cv::fisheye::undistortImage internally utilizes cv::initUndistortRectifyMap & cv::remap
-    // cv::fisheye::undistortImage(cv_ptr->image, image_undistorted, K_, D_, K_undistorted_, image_size_undistorted_);
 
     // publish sensor_msgs::Image converted from cv::Mat(=image_undistorted)
     sensor_msgs::ImagePtr msg_undistorted = cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, image_undistorted).toImageMsg();
@@ -62,20 +60,20 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
 }
 
 void FisheyeUndistorter::initialize_undistortion_map(const cv::Size& image_size) {
-    // Estimate new camera matrix K_undistorted_
-    /* 
-    // this is aborted since balance=0 does not guarantee maximum enclosed rectangle
-    double balance = 0.0; // minimum FOV, maximum cropping
-    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(K_, D_, image_size, cv::Matx33f::eye(), k_undistorted_, balance);
-    */
-    
+    // Resize the image and adjust the camera matrix
+    node_handle_.param<double>(node_name_+"/resize_factor", resize_factor_, 2.0);
+    image_size_undistorted_ = cv::Size(image_size.width/resize_factor_, image_size.height/resize_factor_);
+    K_undistorted_ = K_.clone();
+    K_undistorted_.at<float>(0, 0) /= resize_factor_; // fx
+    K_undistorted_.at<float>(1, 1) /= resize_factor_; // fy
+    K_undistorted_.at<float>(0, 2) /= resize_factor_; // cx
+    K_undistorted_.at<float>(1, 2) /= resize_factor_; // cy
+
     // Initialize undistortion & rectification map
-    image_size_ = image_size;
     cv::fisheye::initUndistortRectifyMap(
-        K_, D_, cv::Matx33f::eye(), K_, image_size_, CV_32FC1, undistortion_map1_, undistortion_map2_);
+        K_, D_, cv::Matx33f::eye(), K_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
 
     ROS_INFO("[Fisheye] Undistortion map initialized.");
-
     initialized_ = true;
 }
 
@@ -156,15 +154,15 @@ void FisheyeUndistorter::callback_timer(const ros::TimerEvent&){
     }
     sensor_msgs::CameraInfo camera_info_msg;
     camera_info_msg.header.frame_id = "fisheye";
-    camera_info_msg.width = image_size_.width;
-    camera_info_msg.height = image_size_.height;
+    camera_info_msg.width = image_size_undistorted_.width;
+    camera_info_msg.height = image_size_undistorted_.height;
 
     // Initialize K with zeros
     std::fill(camera_info_msg.K.begin(), camera_info_msg.K.end(), 0.0);
-    camera_info_msg.K[0] = K_.at<float>(0, 0);
-    camera_info_msg.K[2] = K_.at<float>(0, 2);
-    camera_info_msg.K[4] = K_.at<float>(1, 1);
-    camera_info_msg.K[5] = K_.at<float>(1, 2);
+    camera_info_msg.K[0] = K_undistorted_.at<float>(0, 0);
+    camera_info_msg.K[2] = K_undistorted_.at<float>(0, 2);
+    camera_info_msg.K[4] = K_undistorted_.at<float>(1, 1);
+    camera_info_msg.K[5] = K_undistorted_.at<float>(1, 2);
     camera_info_msg.K[8] = 1;
     // Undistorted, thus no distortion coefficients
     camera_info_msg.D = {0.0, 0.0, 0.0, 0.0, 0.0};

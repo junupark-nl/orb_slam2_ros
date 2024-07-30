@@ -12,6 +12,7 @@
     <arg name="fisheye_k2" default="0.0" />
     <arg name="fisheye_k3" default="0.0" />
     <arg name="fisheye_k4" default="0.0" />
+    <arg name="resize_factor" default="2.0" />
 
     <arg name="fx" default="$(arg fisheye_fx)" />
     <arg name="fy" default="$(arg fisheye_fy)" />
@@ -45,6 +46,7 @@
         <param name="k2" type="double" value="$(arg fisheye_k2)" />
         <param name="k3" type="double" value="$(arg fisheye_k3)" />
         <param name="k4" type="double" value="$(arg fisheye_k4)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
     </node>
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
         <!-- topic remapping -->

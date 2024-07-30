@@ -264,7 +264,6 @@ void node::update_tf() {
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
-    // TODO: convert map_points to point cloud correctly via transform
     if (map_points.empty()) {
         return;
     }
@@ -281,16 +280,14 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
     point_cloud.row_step = point_cloud.point_step * point_cloud.width;
     point_cloud.fields.resize(num_channels);
 
-    std::string channel_id[] = { "x", "y", "z"};
+    std::string channel_id[] = {"x", "y", "z"};
     for (int i = 0; i<num_channels; i++) {
         point_cloud.fields[i].name = channel_id[i];
         point_cloud.fields[i].offset = i * sizeof(float);
         point_cloud.fields[i].count = 1;
         point_cloud.fields[i].datatype = sensor_msgs::PointField::FLOAT32;
     }
-
     point_cloud.data.resize(point_cloud.row_step * point_cloud.height);
-
 
     float data_array[num_channels];
     unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
@@ -305,6 +302,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[1] = point_world.at<float>(1);
             data_array[2] = point_world.at<float>(2);
 #else
+            // RDF -> ENU (ORB-SLAM2 -> ROS), see convert_orb_pose_to_ros_tf
             data_array[0] = point_world.at<float>(2);
             data_array[1] = -point_world.at<float>(0);
             data_array[2] = -point_world.at<float>(1);
@@ -330,22 +328,21 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 }
 
 tf2::Transform node::convert_orb_pose_to_ros_tf(cv::Mat Tcw){
-
-    // Conversion from ORB_SLAM2 to ROS(ENU)
-    //      ORB-SLAM2:  X-right,    Y-down,     Z-forward
-    //      ROS ENU:    X-east,     Y-north,    Z-up
-    // Transformation: 
-    //      X_enu = Z_orb
-    //      Y_enu = -X_orb
-    //      Z_enu = -Y_orb
-    // but one is local frame (camera) and the other is inertial (world or map).. this is wierd
-    // Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes
+    /*
+    Conversion from ORB_SLAM2 to ROS(ENU)
+         ORB-SLAM2:  X-right,    Y-down,     Z-forward
+         ROS ENU:    X-east,     Y-north,    Z-up
+    Transformation: 
+         X_enu = Z_orb
+         Y_enu = -X_orb
+         Z_enu = -Y_orb
+    but one is local frame (camera) and the other is inertial (world or map).. this is wierd
+    Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes
+    */
 
     if (Tcw.empty()) {
         return latest_tf_;
     }
-    // Ensure Tcw is 4x4
-    assert(Tcw.cols == 4 && Tcw.rows == 4);
 
     // Convert rotation matrix to tf2::Matrix3x3
     tf2::Matrix3x3 tf2_Rcw(

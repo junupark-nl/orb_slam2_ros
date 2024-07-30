@@ -6,6 +6,7 @@
     <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
     <arg name="orb_slam2_parameter_file" default="slam_base.yaml" /> <!-- fisheye_adaptor will provide camera intrinsic as a topic -->
     <arg name="fisheye_calibration_file" default="fisheye_starling2_front.yaml" />
+    <arg name="resize_factor" default="2.0" />
 
     <arg name="load_map" default="false" />
     <arg name="map_file_name" default="map.bin" />
@@ -21,6 +22,7 @@
 
         <!-- static parameters -->
         <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
     </node>
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
         <!-- topic remapping -->
