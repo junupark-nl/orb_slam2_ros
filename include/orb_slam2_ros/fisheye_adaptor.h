@@ -29,18 +29,21 @@ class FisheyeUndistorter {
         void print_loaded_parameters();
         void initialize_undistortion_map(const cv::Size& image_size);
 
+        // node
+        std::string node_name_;
         ros::NodeHandle node_handle_;
         image_transport::ImageTransport image_transport_;
         image_transport::Subscriber image_subscriber_;
         image_transport::Publisher image_publisher_;
-        ros::Timer timer_;
         ros::Publisher camera_info_publisher_;
-        std::string node_name_;
+        ros::Timer timer_;
 
+        // fisheye camera parameters
         cv::Mat K_;
         cv::Mat D_;
-        bool initialized_;
 
+        // undistortion parameters
+        bool initialized_;
         double resize_factor_;
         cv::Mat K_undistorted_;
         cv::Mat undistortion_map1_, undistortion_map2_;

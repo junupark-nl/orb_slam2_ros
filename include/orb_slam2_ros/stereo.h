@@ -16,10 +16,12 @@ class stereo: public node {
         ~stereo();
     private:
         void callback_image(const sensor_msgs::ImageConstPtr &msg_left, const sensor_msgs::ImageConstPtr &msg_right);
+        void callback_timer(const ros::TimerEvent&);
         typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> PolicyTimeSync;
         message_filters::Synchronizer<PolicyTimeSync> *synchronizer_;
         message_filters::Subscriber<sensor_msgs::Image> *left_image_subscriber_;
         message_filters::Subscriber<sensor_msgs::Image> *right_image_subscriber_;
+        ros::Timer timer_;
 };
 
 } // namespace orb_slam2_ros

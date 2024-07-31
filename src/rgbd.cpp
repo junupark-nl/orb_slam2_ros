@@ -4,15 +4,15 @@ namespace orb_slam2_ros {
 
 rgbd::rgbd(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node(node_handle, image_transport, sensor_type) {
-    // Initialize Node first
-    initialize_node();
-
     // Initiazte tracking callback of RGBD ORB-SLAM2
     rgb_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/rgb/image_raw", 1);
     depth_image_subscriber_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle, "/camera/depth_registered/image_raw", 1);
 
     synchronizer_ = new message_filters::Synchronizer<PolicyTimeSync>(PolicyTimeSync(10), *rgb_image_subscriber_, *depth_image_subscriber_);
     synchronizer_->registerCallback(boost::bind(&rgbd::callback_image, this, _1, _2));
+
+    // Set up a timer to publish point cloud
+    timer_ = node_handle.createTimer(ros::Duration(2.0), &rgbd::callback_timer, this);
 }
 
 rgbd::~rgbd() {
@@ -43,7 +43,12 @@ void rgbd::callback_image(const sensor_msgs::ImageConstPtr &msg_rgb, const senso
     // pass images to ORB-SLAM
     latest_Tcw_ = orb_slam_->TrackRGBD(cv_ptr_rgb->image, cv_ptr_depth->image, latest_image_time_.toSec());
 
-    publish_topics();
+    check_initialized(orb_slam_->GetTrackingState());
+    publish_pose_and_image();
+}
+
+void rgbd::callback_timer(const ros::TimerEvent&) {
+    publish_periodicals();
 }
     
 } // namespace orb_slam2_ros

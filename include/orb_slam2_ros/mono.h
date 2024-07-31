@@ -11,7 +11,9 @@ class mono: public node {
         ~mono();
     private:
         void callback_image(const sensor_msgs::ImageConstPtr &msg);
+        void callback_timer(const ros::TimerEvent&);
         image_transport::Subscriber image_subscriber_;
+        ros::Timer timer_;
 };
 
 } // namespace orb_slam2_ros
