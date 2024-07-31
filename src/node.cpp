@@ -91,67 +91,7 @@ void node::check_initialized(const int tracking_state) {
             tf_vehicle_init_to_map_ = tf_map_to_vehicle_init_.inverse();
             // R_vehicle_init_to_map = tf_vehicle_init_to_map_.getBasis();
             // t_vehicle_init_to_map = tf_vehicle_init_to_map_.getOrigin();
-
-
-
-
-            std::cout << "tf_map_to_vehicle_init_:" << std::endl;
-            // Extract translation
-            tf2::Vector3 translation = tf_map_to_vehicle_init_.getOrigin();
             
-            // Extract rotation (quaternion)
-            tf2::Quaternion rotation = tf_map_to_vehicle_init_.getRotation();
-            
-            // Convert quaternion to roll, pitch, yaw
-            double roll, pitch, yaw;
-            tf2::Matrix3x3(rotation).getRPY(roll, pitch, yaw);
-            
-            // Print using std::cout
-            std::cout << "Translation: "
-                    << "x=" << translation.x() << ", "
-                    << "y=" << translation.y() << ", "
-                    << "z=" << translation.z() << std::endl;
-            std::cout << "Rotation (quaternion): "
-                    << "x=" << rotation.x() << ", "
-                    << "y=" << rotation.y() << ", "
-                    << "z=" << rotation.z() << ", "
-                    << "w=" << rotation.w() << std::endl;
-            std::cout << "Rotation (RPY): "
-                    << "roll=" << roll << ", "
-                    << "pitch=" << pitch << ", "
-                    << "yaw=" << yaw << std::endl;
-            std::cout << "tf_vehicle_init_to_map_:" << std::endl;
-            // Extract translation
-            translation = tf_vehicle_init_to_map_.getOrigin();
-            
-            // Extract rotation (quaternion)
-            rotation = tf_vehicle_init_to_map_.getRotation();
-            
-            // Convert quaternion to roll, pitch, yaw
-            tf2::Matrix3x3(rotation).getRPY(roll, pitch, yaw);
-            
-            // Print using std::cout
-            std::cout << "Translation: "
-                    << "x=" << translation.x() << ", "
-                    << "y=" << translation.y() << ", "
-                    << "z=" << translation.z() << std::endl;
-            std::cout << "Rotation (quaternion): "
-                    << "x=" << rotation.x() << ", "
-                    << "y=" << rotation.y() << ", "
-                    << "z=" << rotation.z() << ", "
-                    << "w=" << rotation.w() << std::endl;
-            std::cout << "Rotation (RPY): "
-                    << "roll=" << roll << ", "
-                    << "pitch=" << pitch << ", "
-                    << "yaw=" << yaw << std::endl;
-
-
-
-
-
-
-
-
             initialized_ = true;
             ROS_INFO("[ORB_SLAM2_ROS] SLAM initialized.");
         }
