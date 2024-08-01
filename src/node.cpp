@@ -85,13 +85,15 @@ void node::initialize_orb_slam2() {
 void node::check_initialized(const int tracking_state) {
     if (!initialized_) {
         if (tracking_state == ORB_SLAM2::Tracking::eTrackingState::OK && last_tracking_state_ != ORB_SLAM2::Tracking::eTrackingState::OK) {
+
             // Get the initial vehicle pose
-            geometry_msgs::TransformStamped transform_map_to_vehicle = tfBuffer_.lookupTransform("voxl", "map", ros::Time(0), ros::Duration(1.0));
+            geometry_msgs::TransformStamped transform_map_to_vehicle = tfBuffer_.lookupTransform("voxl", "map", ros::Time(0));
             tf2::fromMsg(transform_map_to_vehicle.transform, tf_map_to_vehicle_init_);
+            tf2::Quaternion q = tf_map_to_vehicle_init_.getRotation();
+            tf_map_to_vehicle_init_.setRotation(tf2::Quaternion(q.x(), -q.y(), -q.z(), q.w()));
             tf_vehicle_init_to_map_ = tf_map_to_vehicle_init_.inverse();
-            // R_vehicle_init_to_map = tf_vehicle_init_to_map_.getBasis();
-            // t_vehicle_init_to_map = tf_vehicle_init_to_map_.getOrigin();
-            
+
+            // mark initialized
             initialized_ = true;
             ROS_INFO("[ORB_SLAM2_ROS] SLAM initialized.");
         }
@@ -293,6 +295,17 @@ void node::publish_pose(cv::Mat Tcw) {
 
 void node::update_local_tf() {
     latest_local_tf_ = convert_orb_homogeneous_to_local_enu(latest_Tcw_);
+
+    // tf2::Matrix3x3 latest_local_tf_basis = latest_local_tf_.getBasis();
+    // std::cout << "latest_local_tf_:" << std::endl;
+    // std::cout << "Basis:" << std::endl; 
+    // std::cout << latest_local_tf_basis.getRow(0).getX() << " " << latest_local_tf_basis.getRow(0).getY() << " " << latest_local_tf_basis.getRow(0).getZ() << std::endl;
+    // std::cout << latest_local_tf_basis.getRow(1).getX() << " " << latest_local_tf_basis.getRow(1).getY() << " " << latest_local_tf_basis.getRow(1).getZ() << std::endl;
+    // std::cout << latest_local_tf_basis.getRow(2).getX() << " " << latest_local_tf_basis.getRow(2).getY() << " " << latest_local_tf_basis.getRow(2).getZ() << std::endl;
+    // double roll, pitch, yaw;
+    // latest_local_tf_basis.getRPY(roll, pitch, yaw);
+    // std::cout << "RPY:" << std::endl;
+    // std::cout << roll << " " << pitch << " " << yaw << std::endl;
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
@@ -338,6 +351,13 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[1] = -point_world.at<float>(0);
             data_array[2] = -point_world.at<float>(1);
 #else
+            /* seems right 
+            tf2::Vector3 point(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
+            tf2::Vector3 point_transformed = tf_map_to_vehicle_init_.getBasis() * (R_rdf_to_flu_ * point);
+            data_array[0] = point_transformed.x();
+            data_array[1] = point_transformed.y();
+            data_array[2] = point_transformed.z();
+            */
             data_array[0] = point_world.at<float>(0);
             data_array[1] = point_world.at<float>(1);
             data_array[2] = point_world.at<float>(2);
@@ -349,9 +369,10 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 #ifdef RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
     map_publisher_.publish(point_cloud);
 #else
-    // tf2::Transform tf_camera_to_vehicle(R_enu_to_ned_ * R_cam_to_enu_); // in case tf_vehicle_init_to_map_ is ned
-    tf2::Transform tf_camera_to_vehicle(R_cam_to_enu_); // currently don't bother with the translation
-    tf2::Stamped<tf2::Transform> stamped_transform(tf_vehicle_init_to_map_ * tf_camera_to_vehicle, latest_image_time_, "map");
+    tf2::Transform tf_map_to_vehicle_init_rdf;
+    tf_map_to_vehicle_init_rdf.setBasis(tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_);
+    tf_map_to_vehicle_init_rdf.setOrigin(tf_map_to_vehicle_init_.getOrigin());
+    tf2::Stamped<tf2::Transform> stamped_transform(tf_map_to_vehicle_init_rdf, ros::Time::now(), "map"); // latest_image_time_ is lagging behind
 
     sensor_msgs::PointCloud2 point_cloud_transformed;
     tf2::doTransform(point_cloud, point_cloud_transformed, tf2::toMsg(stamped_transform));
@@ -364,12 +385,14 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
     Conversion from ORB_SLAM2 to ROS(ENU)
          ORB-SLAM2:  X-right,    Y-down,     Z-forward
          ROS ENU:    X-east,     Y-north,    Z-up
+
+    but one is local frame (camera) and the other is inertial (world or map).. this is wierd
+    Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes, and thus FLU=ENU
+
     Transformation: 
          X_enu = Z_orb
          Y_enu = -X_orb
          Z_enu = -Y_orb
-    but one is local frame (camera) and the other is inertial (world or map).. this is wierd
-    Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes
     */
 
     if (Tcw.empty()) {
@@ -386,7 +409,7 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
     tf2::Matrix3x3 tf2_Rwc = tf2_Rcw.transpose();
     tf2::Vector3 tf2_twc = -(tf2_Rwc * tf2_tcw);
 
-    // Rotation matrix should be left multiplied by R_cam_to_enu_ and right multiplied by its transpose to get correct rotation
-    return tf2::Transform(R_cam_to_enu_ * tf2_Rwc * R_cam_to_enu_.transpose(), R_cam_to_enu_ * tf2_twc);
+    // Rotation matrix should be left multiplied by R_rdf_to_flu_ and right multiplied by its transpose to get correct rotation
+    return tf2::Transform(R_rdf_to_flu_ * tf2_Rwc * R_flu_to_rdf_, R_rdf_to_flu_ * tf2_twc);
 }
 } // namespace orb_slam2_ros

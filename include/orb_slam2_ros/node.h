@@ -35,13 +35,18 @@
 namespace orb_slam2_ros {
 
 // Frame convention: ORB-SLAM2=RDF, ROS=ENU, assuming initialliy facing east
-static const tf2::Matrix3x3 R_cam_to_enu_(0, 0, 1,
-                                        -1, 0, 0,
-                                        0,-1, 0);
-static const tf2::Matrix3x3 R_ned_to_enu_(0, 1, 0,
-                                        1, 0, 0,
-                                        0, 0,-1);
-static const tf2::Matrix3x3 R_enu_to_ned_(R_ned_to_enu_.transpose()); // which is essentially the same matrix
+const tf2::Matrix3x3 R_rdf_to_flu_  (0, 0, 1,
+                                    -1, 0, 0,
+                                    0,-1, 0);
+const tf2::Matrix3x3 R_flu_to_rdf_  (R_rdf_to_flu_.transpose());
+const tf2::Matrix3x3 R_flu_to_frd_  (1, 0, 0,
+                                    0, -1, 0,
+                                    0, 0, -1);
+const tf2::Matrix3x3 R_frd_to_flu_  (R_flu_to_frd_.transpose());
+const tf2::Matrix3x3 R_ned_to_enu_  (0, 1, 0,
+                                    1, 0, 0,
+                                    0, 0,-1);
+const tf2::Matrix3x3 R_enu_to_ned_  (R_ned_to_enu_.transpose());
 class node {
     public:
         node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
