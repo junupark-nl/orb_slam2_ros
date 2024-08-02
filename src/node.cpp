@@ -1,4 +1,5 @@
 #include "orb_slam2_ros/node.h"
+#include "orb_slam2_ros/boost_serialization.h"
 #include <ros/package.h> // to get the package path
 
 namespace orb_slam2_ros {
@@ -43,9 +44,10 @@ void node::initialize_ros_side() {
     if (publish_tf_ && !publish_pose_) { // you simply don't publish tf without pose
         publish_pose_ = true;
     }
+
     // Map loading parameters
     node_handle_.param(node_name_+"/load_map", load_map_, false);
-    node_handle_.param(node_name_+"/map_file_name", map_file_name_, std::string("map.bin"));
+    node_handle_.param(node_name_+"/map_file_name", map_file_name_, std::string("map_file_name"));
     
     if(publish_map_) {
         map_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2>(node_name_+"/map", 1);
@@ -76,24 +78,50 @@ void node::initialize_orb_slam2() {
         ros::shutdown();
         return;
     }
-    // Turn on localization mode by default, one should manually switch to mapping mode using dynamic reconfigure to build map
-    orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_, load_map_);
+
+    // Turn localization mode ON by default, one should manually switch to mapping mode using dynamic reconfigure to build map
+    orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_ + ".bin", load_map_);
     orb_slam_->TurnLocalizationMode(true);
     last_tracking_state_ = orb_slam_->GetTrackingState();
+
+    // load the initial vehicle pose if the map is given
+    if (load_map_ && !load_initial_pose(map_file_name_)) {
+        ROS_ERROR("[ORB_SLAM2_ROS] Initial vehicle pose is not loaded. Terminating node.");
+        ros::shutdown();
+        return;
+    }
+}
+
+bool node::load_initial_pose(const std::string &file_name) {
+    std::ifstream in(file_name + "_initial_tf.bin");
+    if (!in.is_open()) {
+        ROS_ERROR("[ORB_SLAM2_ROS] Initial tf file %s not found.", (file_name + "_initial_tf.bin").c_str());
+        return false;
+    }
+    try {
+        boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+        ia >> tf_map_to_vehicle_init_;
+        ia >> tf_vehicle_init_to_map_;
+        in.close();
+        print_transform_info(tf_map_to_vehicle_init_, "Loaded initial vehicle pose");
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 void node::check_initialized(const int tracking_state) {
     if (!initialized_) {
         if (tracking_state == ORB_SLAM2::Tracking::eTrackingState::OK && last_tracking_state_ != ORB_SLAM2::Tracking::eTrackingState::OK) {
 
-            // Get the initial vehicle pose
-            geometry_msgs::TransformStamped transform_map_to_vehicle = tfBuffer_.lookupTransform("voxl", "map", ros::Time(0));
-            tf2::fromMsg(transform_map_to_vehicle.transform, tf_map_to_vehicle_init_);
-            tf2::Quaternion q = tf_map_to_vehicle_init_.getRotation();
-            tf_map_to_vehicle_init_.setRotation(tf2::Quaternion(q.x(), -q.y(), -q.z(), q.w()));
-            tf_vehicle_init_to_map_ = tf_map_to_vehicle_init_.inverse();
+            // Get the initial vehicle pose, if the map is not given
+            if (!load_map_){
+                geometry_msgs::TransformStamped tf_voxl_to_map = tfBuffer_.lookupTransform("voxl", "map", ros::Time(0));
+                tf2::fromMsg(tf_voxl_to_map.transform, tf_vehicle_init_to_map_);
+                tf_map_to_vehicle_init_ = tf_vehicle_init_to_map_.inverse();
 
-            // mark initialized
+                print_transform_info(tf_map_to_vehicle_init_, "Initial vehicle pose");
+            }
             initialized_ = true;
             ROS_INFO("[ORB_SLAM2_ROS] SLAM initialized.");
         }
@@ -226,12 +254,34 @@ bool node::load_orb_slam_parameters_from_server(){
 }
 
 bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res){
-    std::string map_file_name = ros::package::getPath("orb_slam2_ros") + "/resource/" + req.name;
-    res.success = orb_slam_->SaveMap(map_file_name);
+    std::string file_name = ros::package::getPath("orb_slam2_ros") + "/resource/" + req.name;
+    res.success = orb_slam_->SaveMap(file_name + ".bin");
     if (!res.success) {
         ROS_ERROR("[ORB_SLAM2_ROS] Map could not be saved.");
     }
+    if (!save_initial_pose(file_name)){
+        ROS_ERROR("[ORB_SLAM2_ROS] Initial tf could not be saved.");
+        res.success = false;
+    }
     return res.success;
+}
+
+bool node::save_initial_pose(const std::string &file_name) {
+    std::ofstream out(file_name + "_initial_tf.bin", std::ios_base::binary);
+    if (!out.is_open()) {
+        ROS_ERROR("[ORB_SLAM2_ROS] Initial tf file %s not found.", (file_name + "_initial_tf.bin").c_str());
+        return false;
+    }
+    try {
+        boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+        oa << tf_map_to_vehicle_init_;
+        oa << tf_vehicle_init_to_map_;
+        out.close();
+        print_transform_info(tf_map_to_vehicle_init_, "Saved initial vehicle pose");
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
@@ -257,7 +307,7 @@ void node::publish_pose_and_image() {
         return;
     }
     if(publish_pose_) {
-        publish_pose(latest_Tcw_);
+        publish_pose();
     }
 }
 
@@ -278,34 +328,26 @@ void node::publish_rendered_image(cv::Mat image) {
     rendered_image_publisher_.publish(image_msg);
 }
 
-void node::publish_pose(cv::Mat Tcw) {
+void node::publish_pose() {
     update_local_tf();
+    tf2::Stamped<tf2::Transform> latest_stamped_tf(tf_map_to_vehicle_init_ * latest_local_tf_, latest_image_time_, "map");
+
     geometry_msgs::PoseStamped pose_msg;
-    tf2::Stamped<tf2::Transform> latest_stamped_local_tf(latest_local_tf_ * tf_map_to_vehicle_init_, latest_image_time_, "map");
-    pose_publisher_.publish(tf2::toMsg(latest_stamped_local_tf, pose_msg));
+    pose_publisher_.publish(tf2::toMsg(latest_stamped_tf, pose_msg));
 
     if (publish_tf_) {
-        geometry_msgs::TransformStamped latest_global_tf_stamped = tf2::toMsg(latest_stamped_local_tf);
-        latest_global_tf_stamped.child_frame_id = namespace_.empty() ? DEFAULT_NAMESPACE : namespace_; // TODO: body to camera frame
+        geometry_msgs::TransformStamped latest_tf_stamped = tf2::toMsg(latest_stamped_tf);
+        latest_tf_stamped.child_frame_id = namespace_.empty() ? DEFAULT_NAMESPACE : namespace_; // TODO: body to camera frame
 
         static tf2_ros::TransformBroadcaster tf_broadcaster;
-        tf_broadcaster.sendTransform(latest_global_tf_stamped);
+        tf_broadcaster.sendTransform(latest_tf_stamped);
     }
 }
 
 void node::update_local_tf() {
     latest_local_tf_ = convert_orb_homogeneous_to_local_enu(latest_Tcw_);
-
-    // tf2::Matrix3x3 latest_local_tf_basis = latest_local_tf_.getBasis();
-    // std::cout << "latest_local_tf_:" << std::endl;
-    // std::cout << "Basis:" << std::endl; 
-    // std::cout << latest_local_tf_basis.getRow(0).getX() << " " << latest_local_tf_basis.getRow(0).getY() << " " << latest_local_tf_basis.getRow(0).getZ() << std::endl;
-    // std::cout << latest_local_tf_basis.getRow(1).getX() << " " << latest_local_tf_basis.getRow(1).getY() << " " << latest_local_tf_basis.getRow(1).getZ() << std::endl;
-    // std::cout << latest_local_tf_basis.getRow(2).getX() << " " << latest_local_tf_basis.getRow(2).getY() << " " << latest_local_tf_basis.getRow(2).getZ() << std::endl;
-    // double roll, pitch, yaw;
-    // latest_local_tf_basis.getRPY(roll, pitch, yaw);
-    // std::cout << "RPY:" << std::endl;
-    // std::cout << roll << " " << pitch << " " << yaw << std::endl;
+    // uncomment below if you want to see the ORB_SLAM2's pose estimation w.r.t its initial frame
+    // print_transform_info(latest_local_tf_, "latest_local_tf");
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
@@ -314,7 +356,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
     }
     sensor_msgs::PointCloud2 point_cloud;
 
-    const int num_channels = 3; // x y z
+    const int num_channels = 3;
     point_cloud.header.stamp = latest_image_time_;
     point_cloud.header.frame_id = "map";;
     point_cloud.height = 1;
@@ -336,6 +378,11 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
     float data_array[num_channels];
     unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
+#ifndef RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
+    tf2::Vector3 point;
+    tf2::Vector3 point_transformed;
+    tf2::Matrix3x3 roatation = tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_;
+#endif
     for (unsigned int i=0; i<map_points.size(); i++) {
         if (map_points[i] == nullptr) {
             continue;
@@ -351,33 +398,16 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[1] = -point_world.at<float>(0);
             data_array[2] = -point_world.at<float>(1);
 #else
-            /* seems right 
-            tf2::Vector3 point(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
-            tf2::Vector3 point_transformed = tf_map_to_vehicle_init_.getBasis() * (R_rdf_to_flu_ * point);
-            data_array[0] = point_transformed.x();
-            data_array[1] = point_transformed.y();
-            data_array[2] = point_transformed.z();
-            */
-            data_array[0] = point_world.at<float>(0);
-            data_array[1] = point_world.at<float>(1);
-            data_array[2] = point_world.at<float>(2);
+            point.setValue(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
+            point_transformed = roatation * point;
+            data_array[0] = point_transformed.getX();
+            data_array[1] = point_transformed.getY();
+            data_array[2] = point_transformed.getZ();
 #endif
             memcpy(cloud_data_ptr+(i*point_cloud.point_step), data_array, num_channels*sizeof(float));
         }
     }
-
-#ifdef RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
     map_publisher_.publish(point_cloud);
-#else
-    tf2::Transform tf_map_to_vehicle_init_rdf;
-    tf_map_to_vehicle_init_rdf.setBasis(tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_);
-    tf_map_to_vehicle_init_rdf.setOrigin(tf_map_to_vehicle_init_.getOrigin());
-    tf2::Stamped<tf2::Transform> stamped_transform(tf_map_to_vehicle_init_rdf, ros::Time::now(), "map"); // latest_image_time_ is lagging behind
-
-    sensor_msgs::PointCloud2 point_cloud_transformed;
-    tf2::doTransform(point_cloud, point_cloud_transformed, tf2::toMsg(stamped_transform));
-    map_publisher_.publish(point_cloud_transformed);
-#endif
 }
 
 tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
@@ -411,5 +441,15 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
 
     // Rotation matrix should be left multiplied by R_rdf_to_flu_ and right multiplied by its transpose to get correct rotation
     return tf2::Transform(R_rdf_to_flu_ * tf2_Rwc * R_flu_to_rdf_, R_rdf_to_flu_ * tf2_twc);
+}
+
+void node::print_transform_info(const tf2::Transform &tf, const std::string &name) {
+    tf2::Vector3 t = tf.getOrigin();
+
+    double roll, pitch, yaw;
+    tf.getBasis().getRPY(roll, pitch, yaw);
+
+    ROS_INFO("[ORB_SLAM2_ROS] %s: x=%.3f, y=%.3f, z=%.3f, roll=%.3f, pitch=%.3f, yaw=%.3f", name.c_str(),
+        t.getX(), t.getY(), t.getZ(), roll*180/M_PI, pitch*180/M_PI, yaw*180/M_PI);
 }
 } // namespace orb_slam2_ros

@@ -189,6 +189,7 @@ set(LIBS_ORBSLAM
 set(LIBS_ROS
   ${PROJECT_SOURCE_DIR}/orb_slam2_core/lib/lib${ORB_SLAM_CORE}.so # this was built by add_library(${ORB_SLAM_CORE} SHARED ...)
   ${OpenCV_LIBS}
+  ${Boost_LIBRARIES} # added for the serialization library
   ${catkin_LIBRARIES}
 )
 message(STATUS "LIBS_ROS: ${LIBS_ROS}, LIBS_ORBSLAM: ${LIBS_ORBSLAM}") # simply to check the values

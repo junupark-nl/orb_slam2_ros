@@ -72,11 +72,15 @@ class node {
         bool load_orb_slam_parameters_from_file(const std::string &filename);
         bool load_orb_slam_parameters_from_server();
 
-        void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
         void publish_rendered_image(cv::Mat image);
-        void publish_pose(cv::Mat Tcw);
-        void update_local_tf();
+        void publish_pose();
+        void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
+
         tf2::Transform convert_orb_homogeneous_to_local_enu(cv::Mat Tcw); // to the initial frame of the ORB-SLAM2
+        void update_local_tf();
+        void print_transform_info(const tf2::Transform &tf, const std::string &name);
+        bool load_initial_pose(const std::string &file_name);
+        bool save_initial_pose(const std::string &file_name);
 
         bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
         void reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);

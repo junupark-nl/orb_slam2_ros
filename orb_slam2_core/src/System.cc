@@ -588,7 +588,7 @@ bool System::LoadMap(const string &filename) {
     unique_lock<mutex>MapPointGlobal(MapPoint::mGlobalMutex);
     std::ifstream in(filename, std::ios_base::binary);
     if (!in) {
-        cerr << "Cannot open map file: " << filename << " , you need create it first!" << std::endl;
+        cerr << "Cannot open map file: " << filename << " , you need to create it first!" << std::endl;
         return false;
     }
 
