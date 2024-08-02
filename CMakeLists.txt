@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(orb_slam2_ros)
-set(ORB_SLAM_CORE "orb_slam2_core")
+set(ORB_SLAM_CORE "orb_slam2_core") # bare ORB_SLAM2 (without ROS)
 
-## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
@@ -149,7 +148,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
-	${OpenCV_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 include(${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/DBoW2/CMakeLists.txt)
