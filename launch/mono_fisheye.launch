@@ -7,7 +7,7 @@
     <arg name="resize_factor" default="2.0" />
 
     <arg name="load_map" default="false" />
-    <arg name="map_file_name" default="map.bin" />
+    <arg name="map_file_name" default="map_file_name" />
 
     <arg name="publish_map" default="true" />
     <arg name="publish_rendered_image" default="true" />
