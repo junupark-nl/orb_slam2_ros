@@ -1,9 +1,6 @@
 <launch>
     <!-- Define arguments with default values -->
     <arg name="image_topic" default="/camera/image_raw" />
-    <arg name="pose_topic" default="/orb_slam2_mono/pose" />
-    <arg name="map_topic" default="/orb_slam2_mono/map" />
-    <arg name="rendered_image_topic" default="/orb_slam2_mono/rendered_image" />
     <arg name="orb_slam2_parameter_file" default="mono_default.yaml" />
 
     <arg name="load_map" default="false" />
@@ -13,13 +10,16 @@
     <arg name="publish_rendered_image" default="true" />
     <arg name="publish_pose" default="true" />
     <arg name="publish_tf" default="false" />
+    <arg name="publish_pose_to" default="/orb_slam2_mono/pose" />
+    <arg name="publish_map_to" default="/orb_slam2_mono/map" />
+    <arg name="publish_rendered_image_to" default="/orb_slam2_mono/rendered_image" />
 
     <node name="orb_slam2_mono" pkg="orb_slam2_ros" type="orb_slam2_ros_mono" output="screen">
         <!-- topic remapping -->
         <remap from="/camera/image_raw" to="$(arg image_topic)" />
-        <remap from="/orb_slam2_mono/pose" to="$(arg pose_topic)" />
-        <remap from="/orb_slam2_mono/map" to="$(arg map_topic)" />
-        <remap from="/orb_slam2_mono/rendered_image" to="$(arg rendered_image_topic)" />
+        <remap from="/orb_slam2_mono/pose" to="$(arg publish_pose_to)" />
+        <remap from="/orb_slam2_mono/map" to="$(arg publish_map_to)" />
+        <remap from="/orb_slam2_mono/rendered_image" to="$(arg publish_rendered_image_to)" />
 
         <!-- static parameters -->
         <param name="publish_map" type="bool" value="$(arg publish_map)" />
