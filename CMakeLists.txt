@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.0.2)
 project(orb_slam2_ros)
 set(ORB_SLAM_CORE "orb_slam2_core") # bare ORB_SLAM2 (without ROS)
 
+# make sure the default build type is Release, otherwise the performance will be very slow
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE Release)
+ENDIF()
+
 add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
