@@ -19,7 +19,7 @@ void mono::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     // convert sensor_msgs::Image to cv::Mat
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
-        cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
+        cv_ptr = cv_bridge::toCvShare(msg);
     } catch (cv_bridge::Exception &e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;

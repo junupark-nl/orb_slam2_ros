@@ -38,8 +38,7 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
     try {
         // encoding 
         // cv_ptr = cv_bridge::toCvCopy(msg); // follow the encoding of the input image
-        // cv_prt = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8); // convert to MONO8
-        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8); 
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8); 
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
