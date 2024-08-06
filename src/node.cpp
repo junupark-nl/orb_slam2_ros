@@ -6,14 +6,10 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        initialized_(false), camera_info_received_(false) {
+        save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0),
+        slam_initialized_(false), camera_info_received_(false)  {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
-
-    // default values of dynamically reconfigured parameters
-    save_on_exit_ = false;
-    min_observations_per_point_ = 2;
-    dynamic_reconfigure_initial_setup_ = true;
 
     // initial tf
     latest_local_tf_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
@@ -110,8 +106,8 @@ bool node::load_initial_pose(const std::string &file_name) {
     }
 }
 
-void node::check_initialized(const int tracking_state) {
-    if (!initialized_) {
+void node::check_slam_initialized(const int tracking_state) {
+    if (!slam_initialized_) {
         if (tracking_state == ORB_SLAM2::Tracking::eTrackingState::OK && last_tracking_state_ != ORB_SLAM2::Tracking::eTrackingState::OK) {
 
             // Get the initial vehicle pose, if the map is not given
@@ -122,7 +118,7 @@ void node::check_initialized(const int tracking_state) {
 
                 print_transform_info(tf_map_to_vehicle_init_, "Initial vehicle pose");
             }
-            initialized_ = true;
+            slam_initialized_ = true;
             ROS_INFO("[ORB_SLAM2_ROS] SLAM initialized.");
         }
         last_tracking_state_ = tracking_state;
@@ -285,17 +281,19 @@ bool node::save_initial_pose(const std::string &file_name) {
 }
 
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
-    if (dynamic_reconfigure_initial_setup_) {
-        dynamic_reconfigure_initial_setup_ = false;
-        return;
+    if (slam_initialized_) {
+        orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
     }
-    orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
     save_on_exit_ = config.save_trajectory_on_exit;
     min_observations_per_point_ = config.min_observations_per_point;
+    scale_factor_ = config.scale_factor;
 
     ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
-    ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
+    if (slam_initialized_) {
+        ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
+    }
     ROS_INFO("[ORB_SLAM2_ROS] - save trajectory on exit:\t%s", (config.save_trajectory_on_exit ? "True" : "False")); 
+    ROS_INFO("[ORB_SLAM2_ROS] - scale factor:\t%f", config.scale_factor);
     ROS_INFO("[ORB_SLAM2_ROS] - min observation points:\t%d", config.min_observations_per_point);
 }
 
@@ -303,7 +301,7 @@ void node::publish_pose_and_image() {
     if(publish_rendered_image_) {
         publish_rendered_image(orb_slam_->GetRenderedImage());
     }
-    if (!initialized_) {
+    if (!slam_initialized_) {
         return;
     }
     if(publish_pose_) {
@@ -312,7 +310,7 @@ void node::publish_pose_and_image() {
 }
 
 void node::publish_periodicals() {
-    if (!initialized_) {
+    if (!slam_initialized_) {
         return;
     }
     if (publish_map_) {
@@ -399,7 +397,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[2] = -point_world.at<float>(1);
 #else
             point.setValue(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
-            point_transformed = roatation * point;
+            point_transformed = (roatation * point) * scale_factor_;
             data_array[0] = point_transformed.getX();
             data_array[1] = point_transformed.getY();
             data_array[2] = point_transformed.getZ();
@@ -436,6 +434,7 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
         Tcw.at<float>(2, 0), Tcw.at<float>(2, 1), Tcw.at<float>(2, 2)
     );
     tf2::Vector3 tf2_tcw(Tcw.at<float>(0, 3), Tcw.at<float>(1, 3), Tcw.at<float>(2, 3));
+    tf2_tcw *= scale_factor_;
     tf2::Matrix3x3 tf2_Rwc = tf2_Rcw.transpose();
     tf2::Vector3 tf2_twc = -(tf2_Rwc * tf2_tcw);
 

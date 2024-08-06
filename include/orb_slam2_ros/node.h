@@ -57,10 +57,10 @@ class node {
         cv::Mat latest_Tcw_;
         ros::Time latest_image_time_;
         ORB_SLAM2::System *orb_slam_;
-        bool initialized_;
+        bool slam_initialized_;
 
         void initialize_node();
-        void check_initialized(const int tracking_state);
+        void check_slam_initialized(const int tracking_state);
         void publish_pose_and_image();
         void publish_periodicals();
 
@@ -105,9 +105,9 @@ class node {
 
         // dynamic reconfigure & dynamically configured parameters
         dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
+        float scale_factor_;
         bool save_on_exit_;
         int min_observations_per_point_;
-        bool dynamic_reconfigure_initial_setup_;
 
         // ros flags
         bool publish_map_;

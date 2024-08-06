@@ -43,7 +43,7 @@ void rgbd::callback_image(const sensor_msgs::ImageConstPtr &msg_rgb, const senso
     // pass images to ORB-SLAM
     latest_Tcw_ = orb_slam_->TrackRGBD(cv_ptr_rgb->image, cv_ptr_depth->image, latest_image_time_.toSec());
 
-    check_initialized(orb_slam_->GetTrackingState());
+    check_slam_initialized(orb_slam_->GetTrackingState());
     publish_pose_and_image();
 }
 
