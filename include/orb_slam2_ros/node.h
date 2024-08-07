@@ -105,10 +105,10 @@ class node {
 
         // dynamic reconfigure & dynamically configured parameters
         dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
-        float scale_factor_;
+        bool dynamic_reconfigure_initial_setup_;
         bool save_on_exit_;
         int min_observations_per_point_;
-        bool dynamic_reconfigure_initial_setup_;
+        float scale_factor_;
 
         // ros flags
         bool publish_map_;

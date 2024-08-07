@@ -6,7 +6,7 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0), dynamic_reconfigure_initial_setup_(true),
+        dynamic_reconfigure_initial_setup_(true), save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0), 
         slam_initialized_(false), camera_info_received_(false)  {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
