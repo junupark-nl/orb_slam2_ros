@@ -27,12 +27,11 @@ node::~node() {
 }
 
 void node::initialize_node() {
-    initialize_ros_side_pre_slam();
+    initialize_ros_side();
     initialize_orb_slam2();
-    initialize_ros_side_post_slam();
 }
 
-void node::initialize_ros_side_pre_slam() {
+void node::initialize_ros_side() {
     // Publish flags
     node_handle_.param(node_name_+"/publish_map", publish_map_, false);
     node_handle_.param(node_name_+"/publish_rendered_image", publish_rendered_image_, false);
@@ -55,6 +54,15 @@ void node::initialize_ros_side_pre_slam() {
     if(publish_pose_) {
         pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
     }
+
+    // dynamic reconfigure
+    dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
+    dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
+    dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
+
+    // service server for saving map
+    save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
+
     // camera info subscriber
     node_handle_.param<std::string>(node_name_+"/camera_info_topic", camera_info_topic_, "");
 }
@@ -78,18 +86,6 @@ void node::initialize_orb_slam2() {
         ros::shutdown();
         return;
     }
-}
-
-void node::initialize_ros_side_post_slam() {
-    // these include callbacks that should be called AFTER the SLAM is instantiated
-
-    // dynamic reconfigure
-    dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
-    dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
-    dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
-
-    // service server for saving map
-    save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
 }
 
 bool node::load_initial_pose(const std::string &file_name) {
