@@ -19,10 +19,14 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 
 node::~node() {
     ROS_INFO("[ORB_SLAM2_ROS] Terminating ORB-SLAM2 node.");
+    if (dynamic_reconfigure_spinner_) {
+       dynamic_reconfigure_spinner_->stop();
+    }
     orb_slam_->Shutdown();
     if(save_on_exit_){
         orb_slam_->SaveTrajectoryTUM("trajectory.txt");
     }
+    
     delete orb_slam_;
 }
 
@@ -56,9 +60,16 @@ void node::initialize_ros_side() {
     }
 
     // dynamic reconfigure
+    ros::NodeHandle nh_dynamic_reconfigure("~");
+    nh_dynamic_reconfigure.setCallbackQueue(&dynamic_reconfigure_queue_);
+
+    dynamic_reconfigure_server_ = std::make_unique<dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>>(nh_dynamic_reconfigure);
     dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
     dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
-    dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
+    dynamic_reconfigure_server_->setCallback(dynamic_reconfigure_callback);
+
+    dynamic_reconfigure_spinner_ = std::make_unique<ros::AsyncSpinner>(1, &dynamic_reconfigure_queue_);
+    dynamic_reconfigure_spinner_->start();
 
     // service server for saving map
     save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
