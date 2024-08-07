@@ -108,6 +108,7 @@ class node {
         float scale_factor_;
         bool save_on_exit_;
         int min_observations_per_point_;
+        bool dynamic_reconfigure_initial_setup_;
 
         // ros flags
         bool publish_map_;

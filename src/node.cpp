@@ -6,7 +6,7 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0),
+        save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0), dynamic_reconfigure_initial_setup_(true),
         slam_initialized_(false), camera_info_received_(false)  {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
@@ -281,17 +281,17 @@ bool node::save_initial_pose(const std::string &file_name) {
 }
 
 void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
-    if (slam_initialized_) {
-        orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
+    if (dynamic_reconfigure_initial_setup_){
+        dynamic_reconfigure_initial_setup_ = false;
+        return;
     }
+    orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
     save_on_exit_ = config.save_trajectory_on_exit;
     min_observations_per_point_ = config.min_observations_per_point;
     scale_factor_ = config.scale_factor;
 
     ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
-    if (slam_initialized_) {
-        ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
-    }
+    ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
     ROS_INFO("[ORB_SLAM2_ROS] - save trajectory on exit:\t%s", (config.save_trajectory_on_exit ? "True" : "False")); 
     ROS_INFO("[ORB_SLAM2_ROS] - scale factor:\t%f", config.scale_factor);
     ROS_INFO("[ORB_SLAM2_ROS] - min observation points:\t%d", config.min_observations_per_point);
