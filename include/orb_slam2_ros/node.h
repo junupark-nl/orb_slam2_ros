@@ -65,8 +65,9 @@ class node {
         void publish_periodicals();
 
     private:
-        void initialize_ros_side();
+        void initialize_ros_side_pre_slam();
         void initialize_orb_slam2();
+        void initialize_ros_side_post_slam();
         bool load_orb_slam_parameters();
         bool load_orb_slam_parameters_from_topic();
         bool load_orb_slam_parameters_from_file(const std::string &filename);
