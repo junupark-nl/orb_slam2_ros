@@ -104,12 +104,7 @@ class node {
         ros::ServiceServer save_map_service_;
 
         // dynamic reconfigure & dynamically configured parameters
-        // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
-
-        ros::CallbackQueue dynamic_reconfigure_queue_;
-        std::unique_ptr<ros::AsyncSpinner> dynamic_reconfigure_spinner_;
-        std::unique_ptr<dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>> dynamic_reconfigure_server_;
-
+        dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
         bool dynamic_reconfigure_initial_setup_;
         bool save_on_exit_;
         int min_observations_per_point_;
