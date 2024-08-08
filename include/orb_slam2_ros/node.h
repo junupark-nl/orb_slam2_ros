@@ -23,7 +23,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <orb_slam2_ros/SaveMap.h> // service
-#include <orb_slam2_ros/dynamic_reconfigureConfig.h> // dynamic reconfigure
+// #include <orb_slam2_ros/dynamic_reconfigureConfig.h> // dynamic reconfigure
 
 #include "System.h"
 
@@ -83,7 +83,7 @@ class node {
         bool save_initial_pose(const std::string &file_name);
 
         bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
-        void reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);
+        // void reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);
 
         // node
         std::string node_name_;
@@ -93,7 +93,8 @@ class node {
 
         // publisher & subscriber
         ros::Publisher map_publisher_;
-        ros::Publisher pose_publisher_;
+        ros::Publisher pose_publisher_visualization_;
+        ros::Publisher pose_publisher_mavros_;
         image_transport::Publisher rendered_image_publisher_;
 
         // tf
@@ -104,7 +105,7 @@ class node {
         ros::ServiceServer save_map_service_;
 
         // dynamic reconfigure & dynamically configured parameters
-        dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
+        // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
         bool dynamic_reconfigure_initial_setup_;
         bool save_on_exit_;
         int min_observations_per_point_;

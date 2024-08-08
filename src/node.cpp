@@ -6,7 +6,7 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        dynamic_reconfigure_initial_setup_(true), save_on_exit_(false), min_observations_per_point_(2), scale_factor_(1.0), 
+        dynamic_reconfigure_initial_setup_(true), save_on_exit_(false), min_observations_per_point_(2), scale_factor_(4.4729), 
         slam_initialized_(false), camera_info_received_(false)  {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
@@ -52,13 +52,14 @@ void node::initialize_ros_side() {
         rendered_image_publisher_ = image_transport_.advertise(node_name_+"/rendered_image", 1);
     }
     if(publish_pose_) {
-        pose_publisher_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
+        pose_publisher_visualization_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
+        pose_publisher_mavros_ = node_handle_.advertise<geometry_msgs::PoseStamped>("/ifs/mavros/vision_pose/pose", 1);
     }
 
     // dynamic reconfigure
-    dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
-    dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
-    dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
+    // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
+    // dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
+    // dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
 
     // service server for saving map
     save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
@@ -280,22 +281,22 @@ bool node::save_initial_pose(const std::string &file_name) {
     }
 }
 
-void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
-    if (dynamic_reconfigure_initial_setup_){
-        dynamic_reconfigure_initial_setup_ = false;
-        return;
-    }
-    orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
-    save_on_exit_ = config.save_trajectory_on_exit;
-    min_observations_per_point_ = config.min_observations_per_point;
-    scale_factor_ = config.scale_factor;
+// void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
+//     if (dynamic_reconfigure_initial_setup_){
+//         dynamic_reconfigure_initial_setup_ = false;
+//         return;
+//     }
+//     orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
+//     save_on_exit_ = config.save_trajectory_on_exit;
+//     min_observations_per_point_ = config.min_observations_per_point;
+//     scale_factor_ = config.scale_factor;
 
-    ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
-    ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
-    ROS_INFO("[ORB_SLAM2_ROS] - save trajectory on exit:\t%s", (config.save_trajectory_on_exit ? "True" : "False")); 
-    ROS_INFO("[ORB_SLAM2_ROS] - scale factor:\t%f", config.scale_factor);
-    ROS_INFO("[ORB_SLAM2_ROS] - min observation points:\t%d", config.min_observations_per_point);
-}
+//     ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
+//     ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
+//     ROS_INFO("[ORB_SLAM2_ROS] - save trajectory on exit:\t%s", (config.save_trajectory_on_exit ? "True" : "False")); 
+//     ROS_INFO("[ORB_SLAM2_ROS] - scale factor:\t%f", config.scale_factor);
+//     ROS_INFO("[ORB_SLAM2_ROS] - min observation points:\t%d", config.min_observations_per_point);
+// }
 
 void node::publish_pose_and_image() {
     if(publish_rendered_image_) {
@@ -328,13 +329,16 @@ void node::publish_rendered_image(cv::Mat image) {
 
 void node::publish_pose() {
     update_local_tf();
-    tf2::Stamped<tf2::Transform> latest_stamped_tf(tf_map_to_vehicle_init_ * latest_local_tf_, latest_image_time_, "map");
+    const tf2::Transform latest_global_tf_enu = tf_map_to_vehicle_init_ * latest_local_tf_;
+    tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_, "map");
+    tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(tf2::Transform(R_flu_to_frd_) * latest_global_tf_enu, latest_image_time_, "map");
 
     geometry_msgs::PoseStamped pose_msg;
-    pose_publisher_.publish(tf2::toMsg(latest_stamped_tf, pose_msg));
+    pose_publisher_visualization_.publish(tf2::toMsg(latest_stamped_tf_visualization, pose_msg));
+    pose_publisher_mavros_.publish(tf2::toMsg(latest_stamped_tf_mavros, pose_msg));
 
     if (publish_tf_) {
-        geometry_msgs::TransformStamped latest_tf_stamped = tf2::toMsg(latest_stamped_tf);
+        geometry_msgs::TransformStamped latest_tf_stamped = tf2::toMsg(latest_stamped_tf_visualization);
         latest_tf_stamped.child_frame_id = namespace_.empty() ? DEFAULT_NAMESPACE : namespace_; // TODO: body to camera frame
 
         static tf2_ros::TransformBroadcaster tf_broadcaster;
@@ -379,7 +383,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 #ifndef RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
     tf2::Vector3 point;
     tf2::Vector3 point_transformed;
-    tf2::Matrix3x3 roatation = tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_;
+    tf2::Transform tf_map_to_vehicle_init_flu(tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_, tf_map_to_vehicle_init_.getOrigin());
 #endif
     for (unsigned int i=0; i<map_points.size(); i++) {
         if (map_points[i] == nullptr) {
@@ -397,7 +401,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[2] = -point_world.at<float>(1);
 #else
             point.setValue(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
-            point_transformed = (roatation * point) * scale_factor_;
+            point_transformed = tf_map_to_vehicle_init_flu * (point * scale_factor_);
             data_array[0] = point_transformed.getX();
             data_array[1] = point_transformed.getY();
             data_array[2] = point_transformed.getZ();
