@@ -321,17 +321,23 @@ void node::publish_periodicals() {
 
 void node::publish_rendered_image(cv::Mat image) {
     std_msgs::Header header;
-    header.stamp = latest_image_time_;
+    header.stamp = latest_image_time_internal_use_;
     header.frame_id = "tracking_camera";
     sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
     rendered_image_publisher_.publish(image_msg);
 }
 
+void node::update_latest_linux_monotonic_clock_time() {
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    latest_image_time_linux_monotonic_.sec = ts.tv_sec;
+    latest_image_time_linux_monotonic_.nsec = ts.tv_nsec;
+}
+
 void node::publish_pose() {
     update_local_tf();
     const tf2::Transform latest_global_tf_enu = tf_map_to_vehicle_init_ * latest_local_tf_;
-    tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_, "map");
-    tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(tf2::Transform(R_flu_to_frd_) * latest_global_tf_enu, latest_image_time_, "map");
+    tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_internal_use_, "map");
+    tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(latest_global_tf_enu, latest_image_time_linux_monotonic_, "map");
 
     geometry_msgs::PoseStamped pose_msg;
     pose_publisher_visualization_.publish(tf2::toMsg(latest_stamped_tf_visualization, pose_msg));
@@ -359,7 +365,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
     sensor_msgs::PointCloud2 point_cloud;
 
     const int num_channels = 3;
-    point_cloud.header.stamp = latest_image_time_;
+    point_cloud.header.stamp = latest_image_time_internal_use_;
     point_cloud.header.frame_id = "map";;
     point_cloud.height = 1;
     point_cloud.width = map_points.size();

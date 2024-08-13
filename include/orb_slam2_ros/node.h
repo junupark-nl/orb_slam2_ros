@@ -55,12 +55,15 @@ class node {
     protected:
         // slam-derived
         cv::Mat latest_Tcw_;
-        ros::Time latest_image_time_;
+        ros::Time latest_image_time_internal_use_;
+        ros::Time latest_image_time_linux_monotonic_; // time to be sent to MAVROS
+        struct timespec ts; // for clock_gettime in linux, which will be relayed to MAVROS
         ORB_SLAM2::System *orb_slam_;
         bool slam_initialized_;
 
         void initialize_node();
         void check_slam_initialized(const int tracking_state);
+        void update_latest_linux_monotonic_clock_time();
         void publish_pose_and_image();
         void publish_periodicals();
 

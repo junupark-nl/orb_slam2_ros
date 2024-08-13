@@ -39,9 +39,11 @@ void rgbd::callback_image(const sensor_msgs::ImageConstPtr &msg_rgb, const senso
     }
     
     // mark the time of the last processed image
-    latest_image_time_ = msg_rgb->header.stamp;
+    latest_image_time_internal_use_ = msg_rgb->header.stamp;
+    update_latest_linux_monotonic_clock_time();
+
     // pass images to ORB-SLAM
-    latest_Tcw_ = orb_slam_->TrackRGBD(cv_ptr_rgb->image, cv_ptr_depth->image, latest_image_time_.toSec());
+    latest_Tcw_ = orb_slam_->TrackRGBD(cv_ptr_rgb->image, cv_ptr_depth->image, latest_image_time_internal_use_.toSec());
 
     check_slam_initialized(orb_slam_->GetTrackingState());
     publish_pose_and_image();
@@ -50,7 +52,7 @@ void rgbd::callback_image(const sensor_msgs::ImageConstPtr &msg_rgb, const senso
 void rgbd::callback_timer(const ros::TimerEvent&) {
     publish_periodicals();
 }
-    
+
 } // namespace orb_slam2_ros
 
 int main(int argc, char **argv)
