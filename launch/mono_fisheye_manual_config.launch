@@ -34,7 +34,7 @@
     <arg name="publish_map_to" default="/orb_slam2_mono/map" />
     <arg name="publish_rendered_image_to" default="/orb_slam2_mono/rendered_image" />
 
-    <node name="fisheye_adaptor" pkg="orb_slam2_ros" type="orb_slam2_ros_mono_fisheye_adaptor" output="screen">
+    <node name="fisheye_adaptor" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
         <!-- topic remapping -->
         <remap from="/fisheye/image_raw" to="$(arg image_topic)" />
 
