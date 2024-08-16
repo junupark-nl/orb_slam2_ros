@@ -29,6 +29,7 @@ node::~node() {
 void node::initialize_node() {
     initialize_ros_side();
     initialize_orb_slam2();
+    initialize_post_slam();
 }
 
 void node::initialize_ros_side() {
@@ -56,11 +57,6 @@ void node::initialize_ros_side() {
         pose_publisher_mavros_ = node_handle_.advertise<geometry_msgs::PoseStamped>("/ifs/mavros/vision_pose/pose", 1);
     }
 
-    // dynamic reconfigure
-    // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
-    // dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
-    // dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
-
     // service server for saving map
     save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
 
@@ -87,6 +83,13 @@ void node::initialize_orb_slam2() {
         ros::shutdown();
         return;
     }
+}
+
+void node::initialize_post_slam() {
+    // dynamic reconfigure
+    // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
+    // dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
+    // dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
 }
 
 bool node::load_initial_pose(const std::string &file_name) {
@@ -204,8 +207,10 @@ bool node::load_orb_slam_parameters_from_file(const std::string &filename){
 
     if (sensor_type_ == ORB_SLAM2::System::STEREO || sensor_type_ == ORB_SLAM2::System::RGBD) {
         config_file["ThDepth"] >> orb_slam_tracking_parameters_.thDepth;
-        config_file["depthMapFactor"] >> orb_slam_tracking_parameters_.depthMapFactor;
         config_file["Camera.bf"] >> orb_slam_tracking_parameters_.baseline;
+        if (sensor_type_ == ORB_SLAM2::System::RGBD) {
+            config_file["depthMapFactor"] >> orb_slam_tracking_parameters_.depthMapFactor;
+        }
     }
 
     config_file.release();

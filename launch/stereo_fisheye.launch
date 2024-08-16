@@ -1,0 +1,57 @@
+<launch>
+    <!-- Define arguments with default values -->
+    <arg name="left_image_topic" default="/fisheye/left/image_raw" />
+    <arg name="right_image_topic" default="/fisheye/right/image_raw" />
+    <arg name="orb_slam2_parameter_file" default="slam_base_stereo.yaml" /> <!-- fisheye_adaptor will provide camera intrinsic as a topic -->
+    <arg name="fisheye_calibration_file" default="fisheye_starling2_front.yaml" />
+    <arg name="resize_factor" default="2.0" />
+
+    <arg name="load_map" default="false" />
+    <arg name="map_file_name" default="map_file_name" />
+
+    <arg name="publish_map" default="true" />
+    <arg name="publish_rendered_image" default="true" />
+    <arg name="publish_pose" default="true" />
+    <arg name="publish_tf" default="false" />
+    <arg name="publish_pose_to" default="/orb_slam2_stereo/pose" />
+    <arg name="publish_map_to" default="/orb_slam2_stereo/map" />
+    <arg name="publish_rendered_image_to" default="/orb_slam2_stereo/rendered_image" />
+
+    <node name="fisheye_adaptor_left" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
+        <!-- topic remapping -->
+        <remap from="/fisheye/image_raw" to="$(arg left_image_topic)" />
+
+        <!-- static parameters -->
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
+    </node>
+    <node name="fisheye_adaptor_right" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
+        <!-- topic remapping -->
+        <remap from="/fisheye/image_raw" to="$(arg right_image_topic)" />
+
+        <!-- static parameters -->
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
+    </node>
+    <node name="orb_slam2_stereo" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo" output="screen">
+        <!-- topic remapping -->
+        <remap from="/camera/left/image_raw" to="/fisheye_adaptor_left/image_undistorted" />
+        <remap from="/camera/right/image_raw" to="/fisheye_adaptor_right/image_undistorted" />
+        <remap from="/orb_slam2_stereo/pose" to="$(arg publish_pose_to)" />
+        <remap from="/orb_slam2_stereo/map" to="$(arg publish_map_to)" />
+        <remap from="/orb_slam2_stereo/rendered_image" to="$(arg publish_rendered_image_to)" />
+
+        <!-- static parameters -->
+        <param name="publish_map" type="bool" value="$(arg publish_map)" />
+        <param name="publish_rendered_image" type="bool" value="$(arg publish_rendered_image)" />
+        <param name="publish_pose" type="bool" value="$(arg publish_pose)" />
+        <param name="publish_tf" type="bool" value="$(arg publish_tf)" />
+
+        <param name="load_map" type="bool" value="$(arg load_map)" />
+        <param name="map_file_name" type="string" value="$(find orb_slam2_ros)/resource/$(arg map_file_name)" />
+
+        <param name="vocabulary_file_name" type="string" value="$(find orb_slam2_ros)/orb_slam2_core/Vocabulary/ORBvoc.txt" />
+        <param name="parameter_file" type="string" value="$(find orb_slam2_ros)/config/$(arg orb_slam2_parameter_file)" />
+        <param name="camera_info_topic" type="string" value="/fisheye_adaptor_left/rectified_camera_info" />
+    </node>
+</launch>
