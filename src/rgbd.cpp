@@ -57,7 +57,7 @@ void rgbd::callback_timer(const ros::TimerEvent&) {
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "orb_slam2_mono");
+    ros::init(argc, argv, "orb_slam2_rgbd");
     ros::start();
 
     ros::NodeHandle node_handle;
