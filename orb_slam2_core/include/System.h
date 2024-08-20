@@ -125,6 +125,7 @@ public:
 
     // This is a wrapper of ActivateLocalizationMode & DeactivateLocalizationMode
     void TurnLocalizationMode(bool on);
+    bool GetLocalizationMode() const { return mbLocalizationMode; }
 
 private:
     // Load a map from a file

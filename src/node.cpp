@@ -6,8 +6,7 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        dynamic_reconfigure_initial_setup_(true), save_on_exit_(false), min_observations_per_point_(2), scale_factor_(4.4729), 
-        slam_initialized_(false), camera_info_received_(false)  {
+        slam_initialized_(false), scale_factor_(1.0), min_observations_per_point_(2), camera_info_received_(false) {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
 
@@ -20,9 +19,6 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 node::~node() {
     ROS_INFO("[ORB_SLAM2_ROS] Terminating ORB-SLAM2 node.");
     orb_slam_->Shutdown();
-    if(save_on_exit_){
-        orb_slam_->SaveTrajectoryTUM("trajectory.txt");
-    }
     delete orb_slam_;
 }
 
@@ -56,12 +52,6 @@ void node::initialize_ros_side() {
         pose_publisher_visualization_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
         pose_publisher_mavros_ = node_handle_.advertise<geometry_msgs::PoseStamped>("/ifs/mavros/vision_pose/pose", 1);
     }
-
-    // service server for saving map
-    save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
-
-    // camera info subscriber
-    node_handle_.param<std::string>(node_name_+"/camera_info_topic", camera_info_topic_, "");
 }
 
 void node::initialize_orb_slam2() {
@@ -86,10 +76,17 @@ void node::initialize_orb_slam2() {
 }
 
 void node::initialize_post_slam() {
-    // dynamic reconfigure
-    // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig>::CallbackType dynamic_reconfigure_callback;
-    // dynamic_reconfigure_callback = boost::bind(&node::reconfiguration_callback, this, _1, _2);
-    // dynamic_reconfigure_server_.setCallback(dynamic_reconfigure_callback);
+    // service server for saving map
+    save_map_service_ = node_handle_.advertiseService(node_name_+"/save_map", &node::service_save_map, this);
+
+    // service server for setting slam mode
+    set_localization_mode_service_ = node_handle_.advertiseService(node_name_+"/set_localization_mode", &node::service_set_localization_mode, this);
+
+    // service server for rescaling
+    rescale_service_ = node_handle_.advertiseService(node_name_+"/rescale", &node::service_rescale_map, this);
+
+    // service server for minimum observations per point
+    set_mopp_service_ = node_handle_.advertiseService(node_name_+"/set_mopp", &node::service_set_minimum_observations_per_point, this);
 }
 
 bool node::load_initial_pose(const std::string &file_name) {
@@ -113,9 +110,8 @@ bool node::load_initial_pose(const std::string &file_name) {
 void node::check_slam_initialized(const int tracking_state) {
     if (!slam_initialized_) {
         if (tracking_state == ORB_SLAM2::Tracking::eTrackingState::OK && last_tracking_state_ != ORB_SLAM2::Tracking::eTrackingState::OK) {
-
-            // Get the initial vehicle pose, if the map is not given
             if (!load_map_){
+                // Get the initial vehicle pose, if the map is not given
                 geometry_msgs::TransformStamped tf_voxl_to_map = tfBuffer_.lookupTransform("voxl", "map", ros::Time(0));
                 tf2::fromMsg(tf_voxl_to_map.transform, tf_vehicle_init_to_map_);
                 tf_map_to_vehicle_init_ = tf_vehicle_init_to_map_.inverse();
@@ -126,6 +122,33 @@ void node::check_slam_initialized(const int tracking_state) {
             ROS_INFO("[ORB_SLAM2_ROS] SLAM initialized.");
         }
         last_tracking_state_ = tracking_state;
+    }
+}
+
+void node::update_latest_linux_monotonic_clock_time() {
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    latest_image_time_linux_monotonic_.sec = ts.tv_sec;
+    latest_image_time_linux_monotonic_.nsec = ts.tv_nsec;
+}
+
+void node::publish_pose_and_image() {
+    if(publish_rendered_image_) {
+        publish_rendered_image(orb_slam_->GetRenderedImage());
+    }
+    if (!slam_initialized_) {
+        return;
+    }
+    if(publish_pose_) {
+        publish_pose();
+    }
+}
+
+void node::publish_periodicals() {
+    if (!slam_initialized_) {
+        return;
+    }
+    if (publish_map_) {
+        publish_point_cloud(orb_slam_->GetAllMapPoints());
     }
 }
 
@@ -148,6 +171,9 @@ bool node::load_orb_slam_parameters() {
 }
 
 bool node::load_orb_slam_parameters_from_topic(){
+    // camera info subscriber topic name
+    node_handle_.param<std::string>(node_name_+"/camera_info_topic", camera_info_topic_, "");
+
     if (camera_info_topic_.empty()){
         ROS_INFO("[ORB_SLAM2_ROS] Camera info topic is not provided.");
         return false;
@@ -265,7 +291,44 @@ bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros:
         ROS_ERROR("[ORB_SLAM2_ROS] Initial tf could not be saved.");
         res.success = false;
     }
+    ROS_INFO("[ORB_SLAM2_ROS] Map & Initial pose saved.");
     return res.success;
+}
+
+bool node::service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Request &req, orb_slam2_ros::SetLocalizationMode::Response &res){
+    try {
+        orb_slam_->TurnLocalizationMode(req.localization_mode);
+    } catch (...) {
+        res.success = false;
+        return false;
+    }
+    res.success = (orb_slam_->GetLocalizationMode() == req.localization_mode);
+    ROS_INFO("[ORB_SLAM2_ROS] %s mode %s", req.localization_mode ? "Localization" : "Mapping", res.success ? "set" : "not set");
+    return res.success;
+}
+
+bool node::service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res){
+    if (req.scale_factor < 1e-1) {
+        return false;
+    }
+    if (req.scale_factor > 1e2) {
+        return false;
+    }
+    scale_factor_ = req.scale_factor;
+    ROS_INFO("[ORB_SLAM2_ROS] Map rescaled by %.3f", scale_factor_);
+    return true;
+}
+
+bool node::service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Request &req, orb_slam2_ros::SetMopp::Response &res){
+    if (req.min_observations_per_point < 1) {
+        return false;
+    }
+    if (req.min_observations_per_point > 10) {
+        return false;
+    }
+    min_observations_per_point_ = req.min_observations_per_point;
+    ROS_INFO("[ORB_SLAM2_ROS] Minimum observations per point set to %d", req.min_observations_per_point);
+    return true;
 }
 
 bool node::save_initial_pose(const std::string &file_name) {
@@ -286,56 +349,12 @@ bool node::save_initial_pose(const std::string &file_name) {
     }
 }
 
-// void node::reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level){
-//     if (dynamic_reconfigure_initial_setup_){
-//         dynamic_reconfigure_initial_setup_ = false;
-//         return;
-//     }
-//     orb_slam_->TurnLocalizationMode(config.enable_localization_mode);
-//     save_on_exit_ = config.save_trajectory_on_exit;
-//     min_observations_per_point_ = config.min_observations_per_point;
-//     scale_factor_ = config.scale_factor;
-
-//     ROS_INFO("[ORB_SLAM2_ROS] reconfigured!");
-//     ROS_INFO("[ORB_SLAM2_ROS] - SLAM localization mode:\t%s", (config.enable_localization_mode ? "True" : "False"));
-//     ROS_INFO("[ORB_SLAM2_ROS] - save trajectory on exit:\t%s", (config.save_trajectory_on_exit ? "True" : "False")); 
-//     ROS_INFO("[ORB_SLAM2_ROS] - scale factor:\t%f", config.scale_factor);
-//     ROS_INFO("[ORB_SLAM2_ROS] - min observation points:\t%d", config.min_observations_per_point);
-// }
-
-void node::publish_pose_and_image() {
-    if(publish_rendered_image_) {
-        publish_rendered_image(orb_slam_->GetRenderedImage());
-    }
-    if (!slam_initialized_) {
-        return;
-    }
-    if(publish_pose_) {
-        publish_pose();
-    }
-}
-
-void node::publish_periodicals() {
-    if (!slam_initialized_) {
-        return;
-    }
-    if (publish_map_) {
-        publish_point_cloud(orb_slam_->GetAllMapPoints());
-    }
-}
-
 void node::publish_rendered_image(cv::Mat image) {
     std_msgs::Header header;
     header.stamp = latest_image_time_internal_use_;
     header.frame_id = "tracking_camera";
     sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
     rendered_image_publisher_.publish(image_msg);
-}
-
-void node::update_latest_linux_monotonic_clock_time() {
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    latest_image_time_linux_monotonic_.sec = ts.tv_sec;
-    latest_image_time_linux_monotonic_.nsec = ts.tv_nsec;
 }
 
 void node::publish_pose() {
@@ -359,7 +378,6 @@ void node::publish_pose() {
 
 void node::update_local_tf() {
     latest_local_tf_ = convert_orb_homogeneous_to_local_enu(latest_Tcw_);
-    // uncomment below if you want to see the ORB_SLAM2's pose estimation w.r.t its initial frame
     // print_transform_info(latest_local_tf_, "latest_local_tf");
 }
 
@@ -425,17 +443,17 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
 tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
     /*
-    Conversion from ORB_SLAM2 to ROS(ENU)
-         ORB-SLAM2:  X-right,    Y-down,     Z-forward
-         ROS ENU:    X-east,     Y-north,    Z-up
+        Conversion from ORB_SLAM2 to ROS(ENU)
+            ORB-SLAM2:  X-right,    Y-down,     Z-forward
+            ROS ENU:    X-east,     Y-north,    Z-up
 
-    but one is local frame (camera) and the other is inertial (world or map).. this is wierd
-    Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes, and thus FLU=ENU
+        but one is local frame (camera) and the other is inertial (world or map).. this is wierd
+        Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes, and thus FLU=ENU
 
-    Transformation: 
-         X_enu = Z_orb
-         Y_enu = -X_orb
-         Z_enu = -Y_orb
+        Transformation: 
+            X_enu = Z_orb
+            Y_enu = -X_orb
+            Z_enu = -Y_orb
     */
 
     if (Tcw.empty()) {
@@ -466,4 +484,5 @@ void node::print_transform_info(const tf2::Transform &tf, const std::string &nam
     ROS_INFO("[ORB_SLAM2_ROS] %s: x=%.3f, y=%.3f, z=%.3f, roll=%.3f, pitch=%.3f, yaw=%.3f", name.c_str(),
         t.getX(), t.getY(), t.getZ(), roll*180/M_PI, pitch*180/M_PI, yaw*180/M_PI);
 }
+
 } // namespace orb_slam2_ros

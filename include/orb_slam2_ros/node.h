@@ -4,7 +4,6 @@
 #include <ros/ros.h>
 
 // packages
-#include <dynamic_reconfigure/server.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 
@@ -23,7 +22,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <orb_slam2_ros/SaveMap.h> // service
-// #include <orb_slam2_ros/dynamic_reconfigureConfig.h> // dynamic reconfigure
+#include <orb_slam2_ros/SetLocalizationMode.h> // service
+#include <orb_slam2_ros/RescaleMap.h> // service
+#include <orb_slam2_ros/SetMopp.h> // service
 
 #include "System.h"
 
@@ -80,14 +81,16 @@ class node {
         void publish_pose();
         void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
 
+        bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
+        bool service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Request &req, orb_slam2_ros::SetLocalizationMode::Response &res);
+        bool service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res);
+        bool service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Request &req, orb_slam2_ros::SetMopp::Response &res);
+
         tf2::Transform convert_orb_homogeneous_to_local_enu(cv::Mat Tcw); // to the initial frame of the ORB-SLAM2
         void update_local_tf();
         void print_transform_info(const tf2::Transform &tf, const std::string &name);
         bool load_initial_pose(const std::string &file_name);
         bool save_initial_pose(const std::string &file_name);
-
-        bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
-        // void reconfiguration_callback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);
 
         // node
         std::string node_name_;
@@ -105,15 +108,13 @@ class node {
         tf2_ros::Buffer tfBuffer_;
         tf2_ros::TransformListener tfListener_;
 
-        // service
+        // services & related variables
         ros::ServiceServer save_map_service_;
-
-        // dynamic reconfigure & dynamically configured parameters
-        // dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_reconfigure_server_;
-        bool dynamic_reconfigure_initial_setup_;
-        bool save_on_exit_;
-        int min_observations_per_point_;
+        ros::ServiceServer set_localization_mode_service_;
+        ros::ServiceServer rescale_service_;
+        ros::ServiceServer set_mopp_service_; // minimum observations per point
         float scale_factor_;
+        int min_observations_per_point_;
 
         // ros flags
         bool publish_map_;

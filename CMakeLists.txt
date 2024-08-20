@@ -92,6 +92,9 @@ endif()
 add_service_files(
   FILES
   SaveMap.srv
+  SetLocalizationMode.srv
+  RescaleMap.srv
+  SetMopp.srv
 )
 
 ## Generate actions in the 'action' folder
