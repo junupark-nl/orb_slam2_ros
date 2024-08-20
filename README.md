@@ -7,7 +7,6 @@ cd orb_slam2_core/Vocabulary
 tar -xf ORBvoc.txt.tar.gz
 ```
 
-
 ## Typical Use (monocular fisheye)
 1. Build map prior to the deployment. (offline)
 2. Deploy with localization mode enabled. (online)
@@ -23,19 +22,21 @@ roslaunch orb_slam2_ros mono_fisheye.launch image_topic:=<fisheye_image_topic> f
 
 ### 2. Turn mapping mode on
 ```shell
-rqt --standalone configure
+rosservice call /orb_slam2_<type>/set_localization_mode off
 ```
-- **Explicitly** turn `enable_localization_mode` off.
+- Explicitly turn `localization_mode` off.
+- `type`: mono/stereo/rgbd
 
 ### 3. Build map
-- **DO NOT** initialize SLAM by moving the vehicle/camera around without 2.
+- One must initialize SLAM by moving the vehicle/camera around **AFTER step 2**.
 - You will need **sufficient and consistent disparity** in order to initialize monocular SLAM.
 - Move the vehicle around, taking care not to lose track.
 - Make sure closing loop(s).
+- Diversify viewpoints.
 
 ### 4. Save map
 ```shell
-rosservice call /orb_slam2_ros/save_map <map_file_name>
+rosservice call /orb_slam2_<type>/save_map <map_file_name>
 ```
 - Don't include the extension, i.e., .bin. `rosservice call /orb_slam2_ros/save_map ftrc_indoor` is a good example.
 - The map and the initial vehicle pose will be saved at `./resource/`
@@ -50,8 +51,24 @@ rosservice call /orb_slam2_ros/save_map <map_file_name>
 ```shell
 roslaunch orb_slam2_ros mono_fisheye.launch image_topic:=<fisheye_image_topic> fisheye_calibration_file:=fisheye_starling2_front_modalai.yaml resize_factor:=2.0 load_map:=true map_file_name:=<map_file_name>
 ```
-- The SLAM system is initiated with **tracking mode** by default, 
-    - unless you dynamically (and explicitly) configured it not to do so. (see 2)
+- The SLAM system is initiated with **localization mode** by default, 
+    - unless you dynamically (and explicitly) configured it not to do so. (see step 2)
 - larger `resize_factor` reduces the tracking burden.
     - ORB SLAM is robust to the moderate resolution difference (between mapping and tracking).
     - Adapt the value according to your application.
+
+### 6. Misc
+1. Adjust **scale error** of monocular vision SLAM. default is 1.
+```shell
+rosservice call /orb_slam2_mono/rescale <scale_you_want>
+```
+2. Filter map point cloud. Only keyframes with larger than `minimum_observation_per_point` map points will be included in the published map point cloud.
+```shell
+rosservice call /orb_slam2_<type>/set_mopp <minimum_observation_per_point>
+```
+
+### Currently supported types
+1. monocular
+2. monocular fisheye (rectified via fisheye adaptor)
+3. stereo
+4. stereo fisheye (rectified via two fisheye adaptors)
