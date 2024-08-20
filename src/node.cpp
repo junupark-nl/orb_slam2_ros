@@ -12,7 +12,6 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 
     // initial tf
     latest_local_tf_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
-
     initialize_node();
 }
 
@@ -308,10 +307,10 @@ bool node::service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Req
 }
 
 bool node::service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res){
-    if (req.scale_factor < 1e-1) {
+    if (req.scale_factor < 1e-1F) {
         return false;
     }
-    if (req.scale_factor > 1e2) {
+    if (req.scale_factor > 1e2F) {
         return false;
     }
     scale_factor_ = req.scale_factor;
@@ -399,7 +398,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
     point_cloud.fields.resize(num_channels);
 
     std::string channel_id[] = {"x", "y", "z"};
-    for (int i = 0; i<num_channels; i++) {
+    for (int i = 0; i < num_channels; i++) {
         point_cloud.fields[i].name = channel_id[i];
         point_cloud.fields[i].offset = i * sizeof(float);
         point_cloud.fields[i].count = 1;
@@ -409,12 +408,14 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
     float data_array[num_channels];
     unsigned char *cloud_data_ptr = &(point_cloud.data[0]);
+
 #ifndef RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
     tf2::Vector3 point;
     tf2::Vector3 point_transformed;
     tf2::Transform tf_map_to_vehicle_init_flu(tf_map_to_vehicle_init_.getBasis() * R_rdf_to_flu_, tf_map_to_vehicle_init_.getOrigin());
 #endif
-    for (unsigned int i=0; i<map_points.size(); i++) {
+
+    for (unsigned int i = 0; i < map_points.size(); i++) {
         if (map_points[i] == nullptr) {
             continue;
         }

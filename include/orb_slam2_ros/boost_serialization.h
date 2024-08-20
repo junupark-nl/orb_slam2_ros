@@ -10,6 +10,7 @@
 #include <iostream>
 
 namespace boost {
+
 namespace serialization {
 
 // Serialization function for tf2::Vector3
@@ -81,6 +82,7 @@ void serialize(Archive &ar, tf2::Transform &t, const unsigned int version) {
 }
 
 } // namespace serialization
+
 } // namespace boost
 
 

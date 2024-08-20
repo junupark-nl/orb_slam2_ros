@@ -50,6 +50,6 @@ class FisheyeUndistorter {
         cv::Size image_size_undistorted_;
 };
 
-}
+} // namespace orb_slam2_ros
 
 #endif // FISHEYE_ADAPTOR_H_

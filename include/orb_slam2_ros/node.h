@@ -21,11 +21,14 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
-#include <orb_slam2_ros/SaveMap.h> // service
-#include <orb_slam2_ros/SetLocalizationMode.h> // service
-#include <orb_slam2_ros/RescaleMap.h> // service
-#include <orb_slam2_ros/SetMopp.h> // service
 
+// services
+#include <orb_slam2_ros/SaveMap.h>
+#include <orb_slam2_ros/SetLocalizationMode.h>
+#include <orb_slam2_ros/RescaleMap.h>
+#include <orb_slam2_ros/SetMopp.h>
+
+// ORB-SLAM2
 #include "System.h"
 
 #define RESOLVE_POINT_CLOUD_ONTO_ORB_SLAM_INITIAL_FRAME_ENU
