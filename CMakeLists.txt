@@ -14,7 +14,6 @@ add_compile_options(-std=c++14)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
-  dynamic_reconfigure
   image_transport
   message_generation
   roscpp
@@ -125,9 +124,9 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-generate_dynamic_reconfigure_options(
-  config/dynamic_reconfigure.cfg
-)
+# generate_dynamic_reconfigure_options(
+#   config/dynamic_reconfigure.cfg
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -139,7 +138,7 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs dynamic_reconfigure message_runtime
+  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs message_runtime
   LIBRARIES lib${ORB_SLAM_CORE} libDBoW2 libg2o
 )
 
