@@ -63,7 +63,7 @@ void node::initialize_orb_slam2() {
 
     // Turn localization mode ON by default, one should manually switch to mapping mode using dynamic reconfigure to build map
     orb_slam_ = new ORB_SLAM2::System(vocabulary_file_name_, sensor_type_, orb_slam_tracking_parameters_, map_file_name_ + ".bin", load_map_);
-    orb_slam_->TurnLocalizationMode(true);
+    orb_slam_->TurnLocalizationMode(false);
     last_tracking_state_ = orb_slam_->GetTrackingState();
 
     // load the initial vehicle pose if the map is given
@@ -285,12 +285,12 @@ bool node::service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros:
     res.success = orb_slam_->SaveMap(file_name + ".bin");
     if (!res.success) {
         ROS_ERROR("[ORB_SLAM2_ROS] Map could not be saved.");
-    }
-    if (!save_initial_pose(file_name)){
+    } else if (!save_initial_pose(file_name)){
         ROS_ERROR("[ORB_SLAM2_ROS] Initial tf could not be saved.");
         res.success = false;
+    } else {
+        ROS_INFO("[ORB_SLAM2_ROS] Map & Initial pose saved.");
     }
-    ROS_INFO("[ORB_SLAM2_ROS] Map & Initial pose saved.");
     return res.success;
 }
 
@@ -333,7 +333,7 @@ bool node::service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Re
 bool node::save_initial_pose(const std::string &file_name) {
     std::ofstream out(file_name + "_initial_tf.bin", std::ios_base::binary);
     if (!out.is_open()) {
-        ROS_ERROR("[ORB_SLAM2_ROS] Initial tf file %s not found.", (file_name + "_initial_tf.bin").c_str());
+        ROS_ERROR("[ORB_SLAM2_ROS] Cannot open Initial tf file %s.", (file_name + "_initial_tf.bin").c_str());
         return false;
     }
     try {
