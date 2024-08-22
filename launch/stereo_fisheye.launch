@@ -3,7 +3,8 @@
     <arg name="left_image_topic" default="/fisheye/left/image_raw" />
     <arg name="right_image_topic" default="/fisheye/right/image_raw" />
     <arg name="orb_slam2_parameter_file" default="slam_base_stereo.yaml" /> <!-- fisheye_adaptor will provide camera intrinsic as a topic -->
-    <arg name="fisheye_calibration_file" default="fisheye_starling2_front.yaml" />
+    <arg name="left_fisheye_calibration_file" default="fisheye_starling2_left_modalai.yaml" />
+    <arg name="right_fisheye_calibration_file" default="fisheye_starling2_right_modalai.yaml" />
     <arg name="resize_factor" default="2.0" />
 
     <arg name="load_map" default="false" />
@@ -22,7 +23,7 @@
         <remap from="/fisheye/image_raw" to="$(arg left_image_topic)" />
 
         <!-- static parameters -->
-        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg left_fisheye_calibration_file)" />
         <param name="resize_factor" type="double" value="$(arg resize_factor)" />
     </node>
     <node name="fisheye_adaptor_right" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
@@ -30,7 +31,7 @@
         <remap from="/fisheye/image_raw" to="$(arg right_image_topic)" />
 
         <!-- static parameters -->
-        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg fisheye_calibration_file)" />
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg right_fisheye_calibration_file)" />
         <param name="resize_factor" type="double" value="$(arg resize_factor)" />
     </node>
     <node name="orb_slam2_stereo" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo" output="screen">

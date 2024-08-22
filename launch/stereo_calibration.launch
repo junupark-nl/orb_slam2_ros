@@ -1,0 +1,24 @@
+<launch>
+    <!-- Define arguments with default values -->
+    <arg name="left_image_topic" default="/fisheye/left/image_raw" />
+    <arg name="right_image_topic" default="/fisheye/right/image_raw" />
+    <arg name="left_intrinstic_file" default="fisheye_starling2_left_modalai.yaml" />
+    <arg name="right_intrinstic_file" default="fisheye_starling2_right_modalai.yaml" />
+    <arg name="resize_factor" default="1.0" />
+    <node name="fisheye_adaptor_left" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
+        <!-- topic remapping -->
+        <remap from="/fisheye/image_raw" to="$(arg left_image_topic)" />
+
+        <!-- static parameters -->
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg left_intrinstic_file)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
+    </node>
+    <node name="fisheye_adaptor_right" pkg="orb_slam2_ros" type="orb_slam2_ros_fisheye_adaptor" output="screen">
+        <!-- topic remapping -->
+        <remap from="/fisheye/image_raw" to="$(arg right_image_topic)" />
+
+        <!-- static parameters -->
+        <param name="calibration_file" type="string" value="$(find orb_slam2_ros)/config/$(arg right_intrinstic_file)" />
+        <param name="resize_factor" type="double" value="$(arg resize_factor)" />
+    </node>
+</launch>

@@ -41,11 +41,13 @@ class FisheyeUndistorter {
         // fisheye camera parameters
         cv::Mat K_;
         cv::Mat D_;
+        cv::Mat R_;
+        cv::Mat P_;
 
         // undistortion parameters
         bool initialized_;
         double resize_factor_;
-        cv::Mat K_undistorted_;
+        cv::Mat P_undistorted_;
         cv::Mat undistortion_map1_, undistortion_map2_;
         cv::Size image_size_undistorted_;
 };

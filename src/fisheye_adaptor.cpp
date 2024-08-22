@@ -51,7 +51,7 @@ void FisheyeUndistorter::callback_image(const sensor_msgs::ImageConstPtr &msg) {
 
     // undistort the image
     cv::Mat image_undistorted;
-    cv::remap(cv_ptr->image, image_undistorted, undistortion_map1_, undistortion_map2_, cv::INTER_CUBIC, cv::BORDER_CONSTANT);
+    cv::remap(cv_ptr->image, image_undistorted, undistortion_map1_, undistortion_map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
 
     // publish sensor_msgs::Image converted from cv::Mat(=image_undistorted)
     sensor_msgs::ImagePtr msg_undistorted = cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, image_undistorted).toImageMsg();
@@ -62,15 +62,18 @@ void FisheyeUndistorter::initialize_undistortion_map(const cv::Size& image_size)
     // Resize the image and adjust the camera matrix
     node_handle_.param<double>(node_name_+"/resize_factor", resize_factor_, 2.0);
     image_size_undistorted_ = cv::Size(image_size.width/resize_factor_, image_size.height/resize_factor_);
-    K_undistorted_ = K_.clone();
-    K_undistorted_.at<float>(0, 0) /= resize_factor_; // fx
-    K_undistorted_.at<float>(1, 1) /= resize_factor_; // fy
-    K_undistorted_.at<float>(0, 2) /= resize_factor_; // cx
-    K_undistorted_.at<float>(1, 2) /= resize_factor_; // cy
+    P_undistorted_ = P_.clone();
+    P_undistorted_.at<float>(0, 0) /= resize_factor_; // fx
+    P_undistorted_.at<float>(1, 1) /= resize_factor_; // fy
+    P_undistorted_.at<float>(0, 2) /= resize_factor_; // cx
+    P_undistorted_.at<float>(1, 2) /= resize_factor_; // cy
+    if (P_undistorted_.cols == 4) {
+        P_undistorted_.at<float>(0, 3) /= resize_factor_; // offset
+    }
 
     // Initialize undistortion & rectification map
     cv::fisheye::initUndistortRectifyMap(
-        K_, D_, cv::Matx33f::eye(), K_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
+        K_, D_, R_, P_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
 
     ROS_INFO("[Fisheye] Undistortion map initialized.");
     initialized_ = true;
@@ -98,9 +101,10 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::str
         return false;
     }
 
+    // Intrinsics
     cv::FileNode camera_matrix_node = calibration_file["camera_matrix"];
     cv::FileNode data_node = camera_matrix_node["data"];
-    K_ = cv::Mat(3, 3, CV_32F); // Ensure K_ is of correct size and type
+    K_ = cv::Mat(3, 3, CV_32F);
     cv::FileNodeIterator it = data_node.begin();
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j, ++it) {
@@ -108,13 +112,46 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::str
         }
     }
 
+    // Distortion
     cv::FileNode distortion_coefficients_node = calibration_file["distortion_coefficients"];
     data_node = distortion_coefficients_node["data"];
-    D_ = cv::Mat(1, 4, CV_32F); // Ensure D_ is of correct size and type
+    D_ = cv::Mat(1, 4, CV_32F);
     it = data_node.begin();
     for (int i = 0; i < 4; ++i, ++it) {
         D_.at<float>(i) = static_cast<float>(*it);
     }
+
+    // Rectification
+    cv::FileNode rectification_matrix_node = calibration_file["rectification_matrix"];
+    data_node = rectification_matrix_node["data"];
+    R_ = cv::Mat(3, 3, CV_32F);
+    it = data_node.begin();
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j, ++it) {
+            R_.at<float>(i, j) = static_cast<float>(*it);
+        }
+    }
+    if (cv::countNonZero(R_) == 0) {
+        ROS_WARN("[Fisheye] Rectification matrix is not found in the calibration file.");
+        R_ = cv::Mat::eye(3, 3, CV_32F);
+    }
+
+    // Projection
+    cv::FileNode projection_matrix_node = calibration_file["projection_matrix"];
+    data_node = projection_matrix_node["data"];
+    P_ = cv::Mat(3, 4, CV_32F);
+    it = data_node.begin();
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j, ++it) {
+            P_.at<float>(i, j) = static_cast<float>(*it);
+        }
+    }
+    if (cv::countNonZero(P_) == 0) {
+        ROS_WARN("[Fisheye] Projection matrix is not found in the calibration file.");
+        P_ = cv::Mat(3, 3, CV_32F);
+        K_.copyTo(P_);
+    }
+
     calibration_file.release();
     return true;
 }
@@ -158,10 +195,10 @@ void FisheyeUndistorter::callback_timer(const ros::TimerEvent&){
 
     // Initialize K with zeros
     std::fill(camera_info_msg.K.begin(), camera_info_msg.K.end(), 0.0);
-    camera_info_msg.K[0] = K_undistorted_.at<float>(0, 0);
-    camera_info_msg.K[2] = K_undistorted_.at<float>(0, 2);
-    camera_info_msg.K[4] = K_undistorted_.at<float>(1, 1);
-    camera_info_msg.K[5] = K_undistorted_.at<float>(1, 2);
+    camera_info_msg.K[0] = P_undistorted_.at<float>(0, 0);
+    camera_info_msg.K[2] = P_undistorted_.at<float>(0, 2);
+    camera_info_msg.K[4] = P_undistorted_.at<float>(1, 1);
+    camera_info_msg.K[5] = P_undistorted_.at<float>(1, 2);
     camera_info_msg.K[8] = 1;
     // Undistorted, thus no distortion coefficients
     camera_info_msg.D = {0.0, 0.0, 0.0, 0.0, 0.0};
@@ -180,6 +217,20 @@ void FisheyeUndistorter::print_loaded_parameters() {
     cout << "- k2: " << D_.at<float>(0, 1) << endl;
     cout << "- k3: " << D_.at<float>(0, 2) << endl;
     cout << "- k4: " << D_.at<float>(0, 3) << endl;
+    ROS_INFO("[Fisheye] Rectification matrix:");
+    cout << "- " << R_.at<float>(0, 0) << " " << R_.at<float>(0, 1) << " " << R_.at<float>(0, 2) << endl;
+    cout << "- " << R_.at<float>(1, 0) << " " << R_.at<float>(1, 1) << " " << R_.at<float>(1, 2) << endl;
+    cout << "- " << R_.at<float>(2, 0) << " " << R_.at<float>(2, 1) << " " << R_.at<float>(2, 2) << endl;
+    ROS_INFO("[Fisheye] Projection matrix:");
+    if (P_.cols == 4) {
+        cout << "- " << P_.at<float>(0, 0) << " " << P_.at<float>(0, 1) << " " << P_.at<float>(0, 2) << " " << P_.at<float>(0, 3) << endl;
+        cout << "- " << P_.at<float>(1, 0) << " " << P_.at<float>(1, 1) << " " << P_.at<float>(1, 2) << " " << P_.at<float>(1, 3) << endl;
+        cout << "- " << P_.at<float>(2, 0) << " " << P_.at<float>(2, 1) << " " << P_.at<float>(2, 2) << " " << P_.at<float>(2, 3) << endl;
+    } else {
+        cout << "- " << P_.at<float>(0, 0) << " " << P_.at<float>(0, 1) << " " << P_.at<float>(0, 2) << endl;
+        cout << "- " << P_.at<float>(1, 0) << " " << P_.at<float>(1, 1) << " " << P_.at<float>(1, 2) << endl;
+        cout << "- " << P_.at<float>(2, 0) << " " << P_.at<float>(2, 1) << " " << P_.at<float>(2, 2) << endl;
+    }
 }
 
 } // namespace orb_slam2_ros
