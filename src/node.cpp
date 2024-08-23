@@ -369,6 +369,7 @@ void node::publish_pose(const ros::TimerEvent&) {
 }
 
 void node::update_local_tf() {
+    std::lock_guard<std::mutex> lock(mutex_pose_);
     latest_local_tf_ = convert_orb_homogeneous_to_local_enu(latest_Tcw_);
     // print_transform_info(latest_local_tf_, "latest_local_tf");
 }

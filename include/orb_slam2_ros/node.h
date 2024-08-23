@@ -58,6 +58,7 @@ class node {
     
     protected:
         // slam-derived
+        std::mutex mutex_pose_;
         cv::Mat latest_Tcw_;
         ros::Time latest_image_time_internal_use_;
         ros::Time latest_image_time_linux_monotonic_; // time to be sent to MAVROS
