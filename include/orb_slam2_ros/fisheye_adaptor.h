@@ -39,6 +39,7 @@ class FisheyeUndistorter {
         ros::Timer timer_;
 
         // fisheye camera parameters
+        bool treat_distortion_as_fisheye_;
         cv::Mat K_;
         cv::Mat D_;
         cv::Mat R_;

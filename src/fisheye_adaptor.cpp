@@ -8,7 +8,7 @@ using namespace std;
 namespace orb_slam2_ros {
 
 FisheyeUndistorter::FisheyeUndistorter(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport)
-    : node_handle_(node_handle), image_transport_(image_transport), initialized_(false) {
+    : node_handle_(node_handle), image_transport_(image_transport), initialized_(false), treat_distortion_as_fisheye_(true) {
     node_name_ = ros::this_node::getName();
 
     if (!load_fisheye_camera_parameters()) {
@@ -72,8 +72,13 @@ void FisheyeUndistorter::initialize_undistortion_map(const cv::Size& image_size)
     }
 
     // Initialize undistortion & rectification map
-    cv::fisheye::initUndistortRectifyMap(
-        K_, D_, R_, P_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
+    if (treat_distortion_as_fisheye_) {
+        cv::fisheye::initUndistortRectifyMap(
+            K_, D_, R_, P_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
+    } else {
+        cv::initUndistortRectifyMap(
+            K_, D_, R_, P_undistorted_, image_size_undistorted_, CV_32FC1, undistortion_map1_, undistortion_map2_);
+    }
 
     ROS_INFO("[Fisheye] Undistortion map initialized.");
     initialized_ = true;
@@ -113,11 +118,16 @@ bool FisheyeUndistorter::load_fisheye_camera_parameters_from_file(const std::str
     }
 
     // Distortion
+    cv::FileNode distortion_model = calibration_file["distortion_model"];
+    if (!distortion_model.isNone()) {
+        treat_distortion_as_fisheye_ = ((std::string)distortion_model != "plumb_bob");
+    }
+
     cv::FileNode distortion_coefficients_node = calibration_file["distortion_coefficients"];
     data_node = distortion_coefficients_node["data"];
-    D_ = cv::Mat(1, 4, CV_32F);
     it = data_node.begin();
-    for (int i = 0; i < 4; ++i, ++it) {
+    D_ = cv::Mat(1, (int)data_node.size(), CV_32F);
+    for (int i = 0; i < (int)data_node.size(); ++i, ++it) {
         D_.at<float>(i) = static_cast<float>(*it);
     }
 
@@ -207,6 +217,7 @@ void FisheyeUndistorter::callback_timer(const ros::TimerEvent&){
 }
 
 void FisheyeUndistorter::print_loaded_parameters() {
+    ROS_INFO("[Fisheye] Distortion model: %s", treat_distortion_as_fisheye_ ? "fisheye" : "plumb_bob");
     ROS_INFO("[Fisheye] Camera parameters:");
     cout << "- fx: " << K_.at<float>(0, 0) << endl;
     cout << "- fy: " << K_.at<float>(1, 1) << endl;
@@ -215,8 +226,14 @@ void FisheyeUndistorter::print_loaded_parameters() {
     ROS_INFO("[Fisheye] Distortion coefficients:");
     cout << "- k1: " << D_.at<float>(0, 0) << endl;
     cout << "- k2: " << D_.at<float>(0, 1) << endl;
-    cout << "- k3: " << D_.at<float>(0, 2) << endl;
-    cout << "- k4: " << D_.at<float>(0, 3) << endl;
+    if (!treat_distortion_as_fisheye_) {
+        cout << "- p1: " << D_.at<float>(0, 2) << endl;
+        cout << "- p2: " << D_.at<float>(0, 3) << endl;
+        cout << "- k3: " << D_.at<float>(0, 4) << endl;
+    } else {
+        cout << "- k3: " << D_.at<float>(0, 2) << endl;
+        cout << "- k4: " << D_.at<float>(0, 3) << endl;
+    }
     ROS_INFO("[Fisheye] Rectification matrix:");
     cout << "- " << R_.at<float>(0, 0) << " " << R_.at<float>(0, 1) << " " << R_.at<float>(0, 2) << endl;
     cout << "- " << R_.at<float>(1, 0) << " " << R_.at<float>(1, 1) << " " << R_.at<float>(1, 2) << endl;

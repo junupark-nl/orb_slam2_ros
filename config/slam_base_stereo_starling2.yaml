@@ -6,7 +6,7 @@ Camera.fps: 30.0
 Camera.RGB: 1
 
 # stereo baseline times fx
-Camera.bf: 18.26452985
+Camera.bf: 36.12584
 
 # Close/Far threshold. Baseline times.
 ThDepth: 35.0
