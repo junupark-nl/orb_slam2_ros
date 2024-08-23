@@ -1,5 +1,14 @@
 set (g2o_SOURCE_DIR "${PROJECT_SOURCE_DIR}/orb_slam2_core/Thirdparty/g2o")
 
+# default built type
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE Release)
+ENDIF()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
+SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -march=native")
+
 SET (G2O_LIB_TYPE SHARED)
 
 # There seems to be an issue with MSVC8
