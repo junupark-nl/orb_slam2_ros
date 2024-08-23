@@ -6,7 +6,7 @@ namespace orb_slam2_ros {
 
 node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type)
     : node_handle_(node_handle), image_transport_(image_transport), sensor_type_(sensor_type), tfListener_(tfBuffer_),
-        slam_initialized_(false), scale_factor_(1.0), min_observations_per_point_(2), camera_info_received_(false) {
+        slam_initialized_(false), scale_factor_(3, 1.0F), min_observations_per_point_(2), camera_info_received_(false) {
     node_name_ = ros::this_node::getName();
     namespace_ = ros::this_node::getNamespace();
 
@@ -307,14 +307,24 @@ bool node::service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Req
 }
 
 bool node::service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res){
-    if (req.scale_factor < 1e-1F) {
-        return false;
+    if (req.x > 1e-1F && req.x < 2e2F) {
+        scale_factor_[0] = req.x;
+        ROS_INFO("[ORB_SLAM2_ROS] Map(X) rescaled by %.3f", scale_factor_[0]);
+    } else {
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (X): %.3f", req.x);
     }
-    if (req.scale_factor > 1e2F) {
-        return false;
+    if (req.y > 1e-1F && req.y < 2e2F) {
+        scale_factor_[1] = req.y;
+        ROS_INFO("[ORB_SLAM2_ROS] Map(Y) rescaled by %.3f", scale_factor_[1]);
+    } else {
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Y): %.3f", req.y);
     }
-    scale_factor_ = req.scale_factor;
-    ROS_INFO("[ORB_SLAM2_ROS] Map rescaled by %.3f", scale_factor_);
+    if (req.z > 1e-1F && req.z < 2e2F) {
+        scale_factor_[2] = req.z;
+        ROS_INFO("[ORB_SLAM2_ROS] Map(Z) rescaled by %.3f", scale_factor_[2]);
+    } else {
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Z) : %.3f", req.z);
+    }
     return true;
 }
 
@@ -430,8 +440,10 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             data_array[1] = -point_world.at<float>(0);
             data_array[2] = -point_world.at<float>(1);
 #else
-            point.setValue(point_world.at<float>(0), point_world.at<float>(1), point_world.at<float>(2));
-            point_transformed = tf_map_to_vehicle_init_flu * (point * scale_factor_);
+            point.setValue(point_world.at<float>(0) * scale_factor_[0], 
+                            point_world.at<float>(1) * scale_factor_[1], 
+                            point_world.at<float>(2) * scale_factor_[2]);
+            point_transformed = tf_map_to_vehicle_init_flu * point;
             data_array[0] = point_transformed.getX();
             data_array[1] = point_transformed.getY();
             data_array[2] = point_transformed.getZ();
@@ -467,8 +479,9 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
         Tcw.at<float>(1, 0), Tcw.at<float>(1, 1), Tcw.at<float>(1, 2),
         Tcw.at<float>(2, 0), Tcw.at<float>(2, 1), Tcw.at<float>(2, 2)
     );
-    tf2::Vector3 tf2_tcw(Tcw.at<float>(0, 3), Tcw.at<float>(1, 3), Tcw.at<float>(2, 3));
-    tf2_tcw *= scale_factor_;
+    tf2::Vector3 tf2_tcw(Tcw.at<float>(0, 3) * scale_factor_[0], 
+                            Tcw.at<float>(1, 3) * scale_factor_[1], 
+                            Tcw.at<float>(2, 3) * scale_factor_[2]);
     tf2::Matrix3x3 tf2_Rwc = tf2_Rcw.transpose();
     tf2::Vector3 tf2_twc = -(tf2_Rwc * tf2_tcw);
 

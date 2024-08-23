@@ -116,7 +116,7 @@ class node {
         ros::ServiceServer set_localization_mode_service_;
         ros::ServiceServer rescale_service_;
         ros::ServiceServer set_mopp_service_; // minimum observations per point
-        float scale_factor_;
+        std::vector<float> scale_factor_;
         int min_observations_per_point_;
 
         // ros flags
