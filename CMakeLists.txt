@@ -6,6 +6,8 @@ set(ORB_SLAM_CORE "orb_slam2_core") # bare ORB_SLAM2 (without ROS)
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -mtune=native")
 
 add_compile_options(-std=c++14)
 
