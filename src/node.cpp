@@ -51,6 +51,7 @@ void node::initialize_ros_side() {
         pose_publisher_visualization_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
         pose_publisher_mavros_ = node_handle_.advertise<geometry_msgs::PoseStamped>("/ifs/mavros/vision_pose/pose", 1);
     }
+    timer_ = node_handle_.createTimer(ros::Duration(0.03), &node::publish_pose, this); // roughly 30Hz
 }
 
 void node::initialize_orb_slam2() {
@@ -128,27 +129,6 @@ void node::update_latest_linux_monotonic_clock_time() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     latest_image_time_linux_monotonic_.sec = ts.tv_sec;
     latest_image_time_linux_monotonic_.nsec = ts.tv_nsec;
-}
-
-void node::publish_pose_and_image() {
-    if(publish_rendered_image_) {
-        publish_rendered_image(orb_slam_->GetRenderedImage());
-    }
-    if (!slam_initialized_) {
-        return;
-    }
-    if(publish_pose_) {
-        publish_pose();
-    }
-}
-
-void node::publish_periodicals() {
-    if (!slam_initialized_) {
-        return;
-    }
-    if (publish_map_) {
-        publish_point_cloud(orb_slam_->GetAllMapPoints());
-    }
 }
 
 bool node::load_orb_slam_parameters() {
@@ -366,7 +346,10 @@ void node::publish_rendered_image(cv::Mat image) {
     rendered_image_publisher_.publish(image_msg);
 }
 
-void node::publish_pose() {
+void node::publish_pose(const ros::TimerEvent&) {
+    if(!slam_initialized_ || !publish_pose_) {
+        return;
+    }
     update_local_tf();
     const tf2::Transform latest_global_tf_enu = tf_map_to_vehicle_init_ * latest_local_tf_;
     tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_internal_use_, "map");
@@ -391,6 +374,9 @@ void node::update_local_tf() {
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
+    if (!publish_map_ || !slam_initialized_) {
+        return;
+    }
     if (map_points.empty()) {
         return;
     }

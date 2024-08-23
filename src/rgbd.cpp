@@ -46,11 +46,11 @@ void rgbd::callback_image(const sensor_msgs::ImageConstPtr &msg_rgb, const senso
     latest_Tcw_ = orb_slam_->TrackRGBD(cv_ptr_rgb->image, cv_ptr_depth->image, latest_image_time_internal_use_.toSec());
 
     check_slam_initialized(orb_slam_->GetTrackingState());
-    publish_pose_and_image();
+    publish_rendered_image(orb_slam_->GetRenderedImage());
 }
 
 void rgbd::callback_timer(const ros::TimerEvent&) {
-    publish_periodicals();
+    publish_point_cloud(orb_slam_->GetAllMapPoints());
 }
 
 } // namespace orb_slam2_ros

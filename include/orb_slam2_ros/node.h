@@ -68,8 +68,8 @@ class node {
         void initialize_node();
         void check_slam_initialized(const int tracking_state);
         void update_latest_linux_monotonic_clock_time();
-        void publish_pose_and_image();
-        void publish_periodicals();
+        void publish_rendered_image(cv::Mat image);
+        void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
 
     private:
         void initialize_ros_side();
@@ -80,9 +80,7 @@ class node {
         bool load_orb_slam_parameters_from_file(const std::string &filename);
         bool load_orb_slam_parameters_from_server();
 
-        void publish_rendered_image(cv::Mat image);
-        void publish_pose();
-        void publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points);
+        void publish_pose(const ros::TimerEvent&);
 
         bool service_save_map(orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
         bool service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Request &req, orb_slam2_ros::SetLocalizationMode::Response &res);
@@ -102,6 +100,7 @@ class node {
         image_transport::ImageTransport image_transport_;
 
         // publisher & subscriber
+        ros::Timer timer_; // periodic publication of pose
         ros::Publisher map_publisher_;
         ros::Publisher pose_publisher_visualization_;
         ros::Publisher pose_publisher_mavros_;
