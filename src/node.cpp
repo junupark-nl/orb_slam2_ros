@@ -51,7 +51,7 @@ void node::initialize_ros_side() {
         pose_publisher_visualization_ = node_handle_.advertise<geometry_msgs::PoseStamped>(node_name_+"/pose", 1);
         pose_publisher_mavros_ = node_handle_.advertise<geometry_msgs::PoseStamped>("/ifs/mavros/vision_pose/pose", 1);
     }
-    timer_ = node_handle_.createTimer(ros::Duration(0.03), &node::publish_pose, this); // roughly 30Hz
+    timer_ = node_handle_.createTimer(ros::Duration(0.02), &node::publish_pose, this); // as fast as it can
 }
 
 void node::initialize_orb_slam2() {
@@ -351,6 +351,7 @@ void node::publish_pose(const ros::TimerEvent&) {
         return;
     }
     update_local_tf();
+    update_latest_linux_monotonic_clock_time();
     const tf2::Transform latest_global_tf_enu = tf_map_to_vehicle_init_ * latest_local_tf_;
     tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_internal_use_, "map");
     tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(latest_global_tf_enu, latest_image_time_linux_monotonic_, "map");
