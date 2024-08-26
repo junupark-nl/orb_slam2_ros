@@ -328,9 +328,11 @@ bool node::service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Re
 
 bool node::service_set_offset(orb_slam2_ros::SetOffset::Request &req, orb_slam2_ros::SetOffset::Response &res){
     if (std::abs(req.origin.x) > 5e1F || std::abs(req.origin.y) > 5e1F || std::abs(req.origin.z) > 5e2F) {
+        res.success = false;
         return false;
     }
-    if (std::abs(req.euler_deg.x) > 30 || std::abs(req.euler_deg.y) > 30 || std::abs(req.euler_deg.z) > 30) {
+    if (std::abs(req.euler_deg.x) > 30e1F || std::abs(req.euler_deg.y) > 30e1F || std::abs(req.euler_deg.z) > 30e1F) {
+        res.success = false;
         return false;
     }
     tf2::Vector3 origin(req.origin.x, req.origin.y, req.origin.z);
@@ -339,7 +341,8 @@ bool node::service_set_offset(orb_slam2_ros::SetOffset::Request &req, orb_slam2_
 
     tf_user_offset_flu_.setOrigin(origin);
     tf_user_offset_flu_.setRotation(rotation);
-    ROS_INFO("[ORB_SLAM2_ROS] User offset set");
+    ROS_INFO("[ORB_SLAM2_ROS] User offset set: origin=(%.4f, %.4f, %.4f), euler=(%.2f, %.2f, %.2f)", 
+        origin.x(), origin.y(), origin.z(), req.euler_deg.x, req.euler_deg.y, req.euler_deg.z);
     res.success = true;
     return true;
 }
@@ -396,7 +399,6 @@ void node::publish_pose(const ros::TimerEvent&) {
 void node::update_local_tf() {
     std::lock_guard<std::mutex> lock(mutex_pose_);
     latest_local_tf_ = convert_orb_homogeneous_to_local_enu(latest_Tcw_);
-    // print_transform_info(latest_local_tf_, "latest_local_tf");
 }
 
 void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
@@ -507,8 +509,10 @@ void node::print_transform_info(const tf2::Transform &tf, const std::string &nam
     double roll, pitch, yaw;
     tf.getBasis().getRPY(roll, pitch, yaw);
 
-    ROS_INFO("[ORB_SLAM2_ROS] %s: x=%.3f, y=%.3f, z=%.3f, roll=%.3f, pitch=%.3f, yaw=%.3f", name.c_str(),
-        t.getX(), t.getY(), t.getZ(), roll*180/M_PI, pitch*180/M_PI, yaw*180/M_PI);
+    ROS_INFO("[ORB_SLAM2_ROS] %s: x=%.4f, y=%.4f, z=%.4f", name.c_str(),
+        t.getX(), t.getY(), t.getZ());
+    ROS_INFO("[ORB_SLAM2_ROS] %s: roll=%.4f, pitch=%.4f, yaw=%.4f", name.c_str(), 
+        roll*180/M_PI, pitch*180/M_PI, yaw*180/M_PI);
 }
 
 } // namespace orb_slam2_ros
