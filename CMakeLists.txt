@@ -3,14 +3,16 @@ project(orb_slam2_ros)
 set(ORB_SLAM_CORE "orb_slam2_core") # bare ORB_SLAM2 (without ROS)
 
 # make sure the default build type is Release, otherwise the performance will be very slow
-IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE Release)
-ENDIF()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native") 
-SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -march=native") 
-
+set(CMAKE_BUILD_TYPE Release)
+add_compile_options(
+  -march=native
+  -mtune=native
+)
+add_compile_options(
+  -O3
+  -ffast-math
+  -ftree-vectorize
+)
 add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
