@@ -12,6 +12,7 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 
     // initial tf
     latest_local_tf_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
+    tf_user_offset_flu_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
     initialize_node();
 }
 
@@ -87,6 +88,9 @@ void node::initialize_post_slam() {
 
     // service server for minimum observations per point
     set_mopp_service_ = node_handle_.advertiseService(node_name_+"/set_mopp", &node::service_set_minimum_observations_per_point, this);
+
+    // service server for setting offset
+    set_offset_service_ = node_handle_.advertiseService(node_name_+"/set_offset", &node::service_set_offset, this);
 }
 
 bool node::load_initial_pose(const std::string &file_name) {
@@ -305,6 +309,7 @@ bool node::service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam
     } else {
         ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Z) : %.3f", req.z);
     }
+    res.success = true;
     return true;
 }
 
@@ -317,6 +322,25 @@ bool node::service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Re
     }
     min_observations_per_point_ = req.min_observations_per_point;
     ROS_INFO("[ORB_SLAM2_ROS] Minimum observations per point set to %d", req.min_observations_per_point);
+    res.success = true;
+    return true;
+}
+
+bool node::service_set_offset(orb_slam2_ros::SetOffset::Request &req, orb_slam2_ros::SetOffset::Response &res){
+    if (std::abs(req.origin.x) > 5e1F || std::abs(req.origin.y) > 5e1F || std::abs(req.origin.z) > 5e2F) {
+        return false;
+    }
+    if (std::abs(req.euler_deg.x) > 30 || std::abs(req.euler_deg.y) > 30 || std::abs(req.euler_deg.z) > 30) {
+        return false;
+    }
+    tf2::Vector3 origin(req.origin.x, req.origin.y, req.origin.z);
+    tf2::Quaternion rotation;
+    rotation.setRPY(req.euler_deg.x*M_PI/180, req.euler_deg.y*M_PI/180, req.euler_deg.z*M_PI/180);
+
+    tf_user_offset_flu_.setOrigin(origin);
+    tf_user_offset_flu_.setRotation(rotation);
+    ROS_INFO("[ORB_SLAM2_ROS] User offset set");
+    res.success = true;
     return true;
 }
 
@@ -352,7 +376,7 @@ void node::publish_pose(const ros::TimerEvent&) {
     }
     update_local_tf();
     update_latest_linux_monotonic_clock_time();
-    const tf2::Transform latest_global_tf_enu = tf_map_to_vehicle_init_ * latest_local_tf_;
+    const tf2::Transform latest_global_tf_enu = tf_user_offset_flu_ * tf_map_to_vehicle_init_ * latest_local_tf_;
     tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_internal_use_, "map");
     tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(latest_global_tf_enu, latest_image_time_linux_monotonic_, "map");
 
@@ -431,7 +455,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             point.setValue(point_world.at<float>(0) * scale_factor_[0], 
                             point_world.at<float>(1) * scale_factor_[1], 
                             point_world.at<float>(2) * scale_factor_[2]);
-            point_transformed = tf_map_to_vehicle_init_flu * point;
+            point_transformed = tf_user_offset_flu_ * tf_map_to_vehicle_init_flu * point;
             data_array[0] = point_transformed.getX();
             data_array[1] = point_transformed.getY();
             data_array[2] = point_transformed.getZ();

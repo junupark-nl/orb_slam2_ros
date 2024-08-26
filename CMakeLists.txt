@@ -100,6 +100,7 @@ add_service_files(
   SetLocalizationMode.srv
   RescaleMap.srv
   SetMopp.srv
+  SetOffset.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -113,6 +114,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################

@@ -1,0 +1,6 @@
+# origin & euler (roll, pitch, yaw)
+geometry_msgs/Vector3 origin
+geometry_msgs/Vector3 euler_deg
+---
+# Response
+bool success

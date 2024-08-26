@@ -27,6 +27,7 @@
 #include <orb_slam2_ros/SetLocalizationMode.h>
 #include <orb_slam2_ros/RescaleMap.h>
 #include <orb_slam2_ros/SetMopp.h>
+#include <orb_slam2_ros/SetOffset.h>
 
 // ORB-SLAM2
 #include "System.h"
@@ -87,6 +88,7 @@ class node {
         bool service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Request &req, orb_slam2_ros::SetLocalizationMode::Response &res);
         bool service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res);
         bool service_set_minimum_observations_per_point(orb_slam2_ros::SetMopp::Request &req, orb_slam2_ros::SetMopp::Response &res);
+        bool service_set_offset(orb_slam2_ros::SetOffset::Request &req, orb_slam2_ros::SetOffset::Response &res);
 
         tf2::Transform convert_orb_homogeneous_to_local_enu(cv::Mat Tcw); // to the initial frame of the ORB-SLAM2
         void update_local_tf();
@@ -116,6 +118,7 @@ class node {
         ros::ServiceServer set_localization_mode_service_;
         ros::ServiceServer rescale_service_;
         ros::ServiceServer set_mopp_service_; // minimum observations per point
+        ros::ServiceServer set_offset_service_; // user can additionally shift the origin
         std::vector<float> scale_factor_;
         int min_observations_per_point_;
 
@@ -128,6 +131,7 @@ class node {
         // vehicle pose when ORB-SLAM2 is initialized
         tf2::Transform tf_map_to_vehicle_init_;
         tf2::Transform tf_vehicle_init_to_map_;
+        tf2::Transform tf_user_offset_flu_;
 
         // slam parameters
         std::string vocabulary_file_name_;
