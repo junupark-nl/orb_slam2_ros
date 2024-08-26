@@ -499,8 +499,11 @@ tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
     tf2::Matrix3x3 tf2_Rwc = tf2_Rcw.transpose();
     tf2::Vector3 tf2_twc = -(tf2_Rwc * tf2_tcw);
 
-    // Rotation matrix should be left multiplied by R_rdf_to_flu_ and right multiplied by its transpose to get correct rotation
-    return tf2::Transform(R_rdf_to_flu_ * tf2_Rwc * R_flu_to_rdf_, R_rdf_to_flu_ * tf2_twc);
+    tf2::Matrix3x3 tf2_Rwb = R_cam_to_body_ * tf2_Rwc;
+    tf2::Vector3 tf2_twb = R_cam_to_body_ * tf2_twc + t_cam_to_body_;
+
+    // Rotation matrix should be left multiplied by R and right multiplied by its transpose, when resolving frame is changed
+    return tf2::Transform(R_rdf_to_flu_ * tf2_Rwb * R_flu_to_rdf_, R_rdf_to_flu_ * tf2_twb);
 }
 
 void node::print_transform_info(const tf2::Transform &tf, const std::string &name) {

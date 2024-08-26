@@ -52,6 +52,14 @@ const tf2::Matrix3x3 R_ned_to_enu_  (0, 1, 0,
                                     1, 0, 0,
                                     0, 0,-1);
 const tf2::Matrix3x3 R_enu_to_ned_  (R_ned_to_enu_.transpose());
+
+// relative pose of camera w.r.t body
+const tf2::Matrix3x3 R_body_to_cam_ (1, 0, 0,
+                                    0, 1, 0,
+                                    0, 0, 1);
+const tf2::Vector3 t_body_to_cam_   (-0.004, 0, 0.065);
+const tf2::Matrix3x3 R_cam_to_body_ (R_body_to_cam_.transpose());
+const tf2::Vector3 t_cam_to_body_   (R_cam_to_body_ * (-t_body_to_cam_));
 class node {
     public:
         node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
