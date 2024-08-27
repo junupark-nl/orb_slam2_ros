@@ -292,23 +292,23 @@ bool node::service_set_localization_mode(orb_slam2_ros::SetLocalizationMode::Req
 }
 
 bool node::service_rescale_map(orb_slam2_ros::RescaleMap::Request &req, orb_slam2_ros::RescaleMap::Response &res){
-    if (req.x > 1e-1F && req.x < 2e2F) {
+    if (req.x >= SCALE_FACTOR_MIN && req.x <= SCALE_FACTOR_MAX) {
         scale_factor_[0] = req.x;
-        ROS_INFO("[ORB_SLAM2_ROS] Map(X) rescaled by %.3f", scale_factor_[0]);
+        ROS_INFO("[ORB_SLAM2_ROS] Map(X) rescaled by %.4f", scale_factor_[0]);
     } else {
-        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (X): %.3f", req.x);
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (X): %.4f", req.x);
     }
-    if (req.y > 1e-1F && req.y < 2e2F) {
+    if (req.y >= SCALE_FACTOR_MIN && req.y <= SCALE_FACTOR_MAX) {
         scale_factor_[1] = req.y;
-        ROS_INFO("[ORB_SLAM2_ROS] Map(Y) rescaled by %.3f", scale_factor_[1]);
+        ROS_INFO("[ORB_SLAM2_ROS] Map(Y) rescaled by %.4f", scale_factor_[1]);
     } else {
-        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Y): %.3f", req.y);
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Y): %.4f", req.y);
     }
-    if (req.z > 1e-1F && req.z < 2e2F) {
+    if (req.z >= SCALE_FACTOR_MIN && req.z <= SCALE_FACTOR_MAX) {
         scale_factor_[2] = req.z;
-        ROS_INFO("[ORB_SLAM2_ROS] Map(Z) rescaled by %.3f", scale_factor_[2]);
+        ROS_INFO("[ORB_SLAM2_ROS] Map(Z) rescaled by %.4f", scale_factor_[2]);
     } else {
-        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Z) : %.3f", req.z);
+        ROS_INFO("[ORB_SLAM2_ROS] Invalid scale factor (Z) : %.4f", req.z);
     }
     res.success = true;
     return true;
