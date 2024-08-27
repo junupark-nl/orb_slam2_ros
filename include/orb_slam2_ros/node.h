@@ -40,6 +40,19 @@
 namespace orb_slam2_ros {
 
 // Frame convention: ORB-SLAM2=RDF, ROS=ENU, assuming initialliy facing east
+/*
+    Conversion from ORB_SLAM2 to ROS(ENU)
+        ORB-SLAM2:  X-right,    Y-down,     Z-forward
+        ROS ENU:    X-east,     Y-north,    Z-up
+
+    but one is local frame (camera) and the other is inertial (world or map).. this is wierd
+    Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes, and thus FLU=ENU
+
+    Transformation: 
+        X_enu = Z_orb
+        Y_enu = -X_orb
+        Z_enu = -Y_orb
+*/
 const tf2::Matrix3x3 R_rdf_to_flu_  (0, 0, 1,
                                     -1, 0, 0,
                                     0,-1, 0);
@@ -60,6 +73,7 @@ const tf2::Matrix3x3 R_body_to_cam_ (1, 0, 0,
 const tf2::Vector3 t_body_to_cam_   (-0.004, 0, 0.065);
 const tf2::Matrix3x3 R_cam_to_body_ (R_body_to_cam_.transpose());
 const tf2::Vector3 t_cam_to_body_   (R_cam_to_body_ * (-t_body_to_cam_));
+
 class node {
     public:
         node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport, ORB_SLAM2::System::eSensor sensor_type);
@@ -139,7 +153,8 @@ class node {
         // vehicle pose when ORB-SLAM2 is initialized
         tf2::Transform tf_map_to_vehicle_init_;
         tf2::Transform tf_vehicle_init_to_map_;
-        tf2::Transform tf_user_offset_flu_;
+        tf2::Transform tf_user_offset_;
+        tf2::Transform tf_user_offset_inverse_;
 
         // slam parameters
         std::string vocabulary_file_name_;

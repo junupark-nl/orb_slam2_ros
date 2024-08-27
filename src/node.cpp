@@ -12,7 +12,8 @@ node::node(ros::NodeHandle &node_handle, image_transport::ImageTransport &image_
 
     // initial tf
     latest_local_tf_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
-    tf_user_offset_flu_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
+    tf_user_offset_ = tf2::Transform(tf2::Matrix3x3::getIdentity(), tf2::Vector3(0, 0, 0));
+    tf_user_offset_inverse_ = tf_user_offset_.inverse();
     initialize_node();
 }
 
@@ -339,8 +340,10 @@ bool node::service_set_offset(orb_slam2_ros::SetOffset::Request &req, orb_slam2_
     tf2::Quaternion rotation;
     rotation.setRPY(req.euler_deg.x*M_PI/180, req.euler_deg.y*M_PI/180, req.euler_deg.z*M_PI/180);
 
-    tf_user_offset_flu_.setOrigin(origin);
-    tf_user_offset_flu_.setRotation(rotation);
+    tf_user_offset_.setOrigin(origin);
+    tf_user_offset_.setRotation(rotation);
+    tf_user_offset_inverse_ = tf_user_offset_.inverse();
+
     ROS_INFO("[ORB_SLAM2_ROS] User offset set: origin=(%.4f, %.4f, %.4f), euler=(%.2f, %.2f, %.2f)", 
         origin.x(), origin.y(), origin.z(), req.euler_deg.x, req.euler_deg.y, req.euler_deg.z);
     res.success = true;
@@ -379,7 +382,7 @@ void node::publish_pose(const ros::TimerEvent&) {
     }
     update_local_tf();
     update_latest_linux_monotonic_clock_time();
-    const tf2::Transform latest_global_tf_enu = tf_user_offset_flu_ * tf_map_to_vehicle_init_ * latest_local_tf_;
+    const tf2::Transform latest_global_tf_enu = tf_user_offset_inverse_ * tf_map_to_vehicle_init_ * latest_local_tf_;
     tf2::Stamped<tf2::Transform> latest_stamped_tf_visualization(latest_global_tf_enu, latest_image_time_internal_use_, "map");
     tf2::Stamped<tf2::Transform> latest_stamped_tf_mavros(latest_global_tf_enu, latest_image_time_linux_monotonic_, "map");
 
@@ -457,7 +460,7 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
             point.setValue(point_world.at<float>(0) * scale_factor_[0], 
                             point_world.at<float>(1) * scale_factor_[1], 
                             point_world.at<float>(2) * scale_factor_[2]);
-            point_transformed = tf_user_offset_flu_ * tf_map_to_vehicle_init_flu * point;
+            point_transformed = tf_user_offset_inverse_ * tf_map_to_vehicle_init_flu * point;
             data_array[0] = point_transformed.getX();
             data_array[1] = point_transformed.getY();
             data_array[2] = point_transformed.getZ();
@@ -469,23 +472,17 @@ void node::publish_point_cloud(std::vector<ORB_SLAM2::MapPoint*> map_points) {
 }
 
 tf2::Transform node::convert_orb_homogeneous_to_local_enu(cv::Mat Tcw){
-    /*
-        Conversion from ORB_SLAM2 to ROS(ENU)
-            ORB-SLAM2:  X-right,    Y-down,     Z-forward
-            ROS ENU:    X-east,     Y-north,    Z-up
-
-        but one is local frame (camera) and the other is inertial (world or map).. this is wierd
-        Do we have to assume that the initial pose (of ORB_SLAM2) is identity? and aligned to ENU? -> yes, and thus FLU=ENU
-
-        Transformation: 
-            X_enu = Z_orb
-            Y_enu = -X_orb
-            Z_enu = -Y_orb
-    */
-
     if (Tcw.empty()) {
         return latest_local_tf_;
     }
+
+    /*
+    Worth noting: 
+        1. the notation Rcw (or Tcw) converts "from world to camera"
+        2. which is equivalent to C_n^b in the AE field, commonly denoted as Cnb. (n==w, b==c)
+            (robotics)  R_cw * p_w = p_c 
+            (AE)        C_w^c * p^w = p^c
+    */
 
     // Convert rotation matrix to tf2::Matrix3x3
     tf2::Matrix3x3 tf2_Rcw(
